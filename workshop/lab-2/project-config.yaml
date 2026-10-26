@@ -1,0 +1,13 @@
+# The settings of the project. Here: which Stages promote new Freight by themselves.
+# Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  # It must have the same name as the project
+  name: guestbook
+  namespace: guestbook
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: TODO    # the Stage that should promote by itself
+      autoPromotionEnabled: TODO    # true or false

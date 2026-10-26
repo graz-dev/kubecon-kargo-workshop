@@ -4,6 +4,7 @@
 #
 #   scripts/check.sh setup        the environment of phase 1: cluster, Gitea, the platform, the five apps, the Kargo project
 #   scripts/check.sh 1            lab 1: the Warehouse, the Freight, the dev Stage, a successful promotion, Git and the app
+#   scripts/check.sh 2            lab 2: the staging Stage, auto-promotion on dev, release 1.1.0 on dev, staging promoted by hand
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -103,7 +104,7 @@ check_todos() { # <lab number>
   [[ -d "$dir" ]] || return 0
   for f in "$dir"/*.yaml; do
     [[ -f "$f" ]] || continue
-    hits="$(grep -n -E ':[[:space:]]+TODO([[:space:]]|$)' "$f" | head -3 | tr '\n' ' ' || true)"
+    hits="$(grep -n -E '[:-][[:space:]]+TODO([[:space:]]|$)' "$f" | head -3 | tr '\n' ' ' || true)"
     [[ -z "$hits" ]] || bad "${f#"$ROOT_DIR"/} still has TODO to replace (line: $hits)" "replace it, then: kargo apply -f ${f#"$ROOT_DIR"/}"
   done
 }
@@ -171,11 +172,59 @@ check_lab1() {
   if [[ "$tag" == "0.9.0" ]]; then good "staging still runs 0.9.0: nothing moved past dev"; else bad "staging runs '${tag:-nothing}'" "in this lab only dev should change"; fi
 }
 
+check_lab2() {
+  local tag promotions
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="staging" {f=1} END {exit !f}'; then
+    good "the Stage 'staging' exists"
+  else
+    bad "there is no Stage 'staging'" "apply yours: kargo apply -f work/lab-2/stage-staging.yaml"
+  fi
+  if kargo_cli get projectconfig --project "$KARGO_PROJECT" -o yaml 2>/dev/null | tr -d ' ' | grep -q 'autoPromotionEnabled:true'; then
+    good "the project promotes by itself: auto-promotion is on"
+  else
+    bad "no auto-promotion policy is on" "apply yours: kargo apply -f work/lab-2/project-config.yaml"
+  fi
+  check_todos 2
+  if kargo_has freight '"tag": *"1\.1\.0"'; then
+    good "Freight with the image 1.1.0 exists"
+  else
+    bad "no Freight with the image 1.1.0 yet" "run: make release VERSION=1.1.0 and wait a minute"
+  fi
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev --no-headers 2>/dev/null | grep -c 'Succeeded' || true)"
+  if ((promotions >= 2)); then
+    good "dev has had $promotions successful Promotions: the second one was made by Kargo"
+  else
+    bad "dev has had $promotions successful Promotion(s), and it should have two" "is auto-promotion on, and is 1.1.0 released? Look at: kargo get promotions --project $KARGO_PROJECT --stage dev"
+  fi
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage staging --no-headers 2>/dev/null | grep -c 'Succeeded' || true)"
+  if ((promotions >= 1)); then
+    good "a Promotion to 'staging' succeeded"
+  else
+    bad "no Promotion to 'staging' has succeeded" "promote by hand: kargo promote --project $KARGO_PROJECT --stage staging --warehouse app"
+  fi
+
+  section "Git and the applications"
+  for stage in dev staging; do
+    tag="$(repo_tag "$stage")"
+    if [[ "$tag" == "1.1.0" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag 1.1.0"; else bad "Git: the $stage values file has tag '${tag:-?}', not 1.1.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
+    tag="$(stage_version "$stage")"
+    if [[ "$tag" == "1.1.0" ]]; then good "$stage runs 1.1.0 at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not 1.1.0" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
+  done
+  tag="$(stage_version prod-amer-east)"
+  if [[ "$tag" == "0.9.0" ]]; then good "production still runs 0.9.0: nothing moved past staging"; else bad "production runs '${tag:-nothing}'" "in this lab only dev and staging should change"; fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
+  2) check_lab2 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2." ;;
 esac
 
 printf '\n'
