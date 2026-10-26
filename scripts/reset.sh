@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Back to the start of the workshop, without rebuilding the cluster or the instances:
 #   - the Gitea repository is deleted and created again from the seed (all stages at INITIAL_VERSION, no pull requests)
-#   - what the labs created in the Kargo project (stages, warehouses, ...) is removed; the project and its credentials stay
+#   - what the labs created in the Kargo project (stages, warehouses, freight, ...) is removed; the project and its credentials stay
 #   - the release ceiling goes back to the first release
 # Argo CD syncs the five Applications back to INITIAL_VERSION by itself.
 # Guarded: without --yes (or CONFIRM=yes) it only says what it would do.
@@ -35,7 +35,7 @@ cluster_exists || die "Cluster '$CLUSTER_NAME' does not exist. Run: make up"
 printf 'Reset will:\n'
 printf '  - delete and recreate %s/%s in Gitea (every stage back to %s, pull requests gone)\n' "$GITEA_ORG" "$GITEA_REPO" "$INITIAL_VERSION"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
-  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance\n'
+  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance, and all the Freight\n'
 fi
 printf '  - set the release ceiling back to %s\n' "$FIRST_RELEASE"
 if [[ "$CONFIRM" != yes ]]; then
@@ -50,5 +50,15 @@ fi
 printf '%s' "$FIRST_RELEASE" >"$RELEASE_FILE"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
   apply_kargo_project yes
+  # Pruning a Warehouse leaves its Freight behind, and a new Warehouse called 'app' would adopt it: delete it too
+  kargo_login
+  freight=()
+  while IFS= read -r name; do
+    [[ -z "$name" ]] || freight+=(--name "$name")
+  done < <(kargo_cli get freight --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '{print $1}')
+  if ((${#freight[@]} > 0)); then
+    kargo_cli delete freight --project "$KARGO_PROJECT" "${freight[@]}" >/dev/null
+    ok "Freight deleted"
+  fi
 fi
 printf '\n%sReset done.%s\n' "$_C_GREEN" "$_C_RESET"

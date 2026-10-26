@@ -1,0 +1,24 @@
+# The Warehouse of the guestbook: it watches the image registry and the GitOps repository.
+# Nothing to fill in here: read it, then apply it.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: app
+  namespace: guestbook
+spec:
+  subscriptions:
+    # The image: any version from 1.0.0 up to 1.0.0
+    - image:
+        repoURL: ghcr.io/graz-dev/kargo-workshop-guestbook
+        imageSelectionStrategy: SemVer
+        constraint: ">=1.0.0 <=1.0.0"
+        discoveryLimit: 10
+    # The chart travels with the image. env/ is left out: promotions write there.
+    - git:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        repoURL: http://gitea.localtest.me/workshop/guestbook-gitops
+        branch: main
+        includePaths:
+          - glob:charts/**
+        excludePaths:
+          - glob:env/**

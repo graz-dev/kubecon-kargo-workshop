@@ -1,0 +1,20 @@
+# The Warehouse of the guestbook at the end of Lab 1 (the release ceiling is 1.0.0).
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: app
+  namespace: @@KARGO_PROJECT@@
+spec:
+  subscriptions:
+    - image:
+        repoURL: @@CLUSTER_IMAGE_REPO@@
+        imageSelectionStrategy: SemVer
+        constraint: ">=1.0.0 <=1.0.0"
+        discoveryLimit: 10
+    - git:
+        repoURL: @@GITEA_REPO_URL@@
+        branch: @@GITEA_BRANCH@@
+        includePaths:
+          - glob:charts/**
+        excludePaths:
+          - glob:env/**

@@ -1,0 +1,15 @@
+# Applied on top of the Kargo agent's manifests. Gitea in the workshop speaks plain HTTP, and Kargo refuses to send Git
+# credentials over HTTP unless the controller is told otherwise. Workshop only: a real Git server uses HTTPS.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - target:
+      kind: ConfigMap
+      name: kargo-controller-@@AGENT@@
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kargo-controller-@@AGENT@@
+      data:
+        ALLOW_CREDENTIALS_OVER_HTTP: "true"

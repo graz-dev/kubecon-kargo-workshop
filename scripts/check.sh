@@ -3,8 +3,9 @@
 # something is wrong, with a hint for each failure.
 #
 #   scripts/check.sh setup        the environment of phase 1: cluster, Gitea, the platform, the five apps, the Kargo project
+#   scripts/check.sh 1            lab 1: the Warehouse, the Freight, the dev Stage, a successful promotion, Git and the app
 #
-# The labs add their own steps (1, 2, ...) in later phases.
+# The other labs add their own steps in later phases.
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -69,7 +70,8 @@ check_setup() {
     else
       bad "project $KARGO_PROJECT is missing or not ready" "run: make seed"
     fi
-    if kargo_cli get repo-credentials --project "$KARGO_PROJECT" 2>/dev/null | grep -q "$(gitea_repo_url)"; then
+    creds="$(kargo_cli get repo-credentials --project "$KARGO_PROJECT" 2>/dev/null || true)"
+    if grep -q "$(gitea_repo_url)" <<<"$creds"; then
       good "Kargo has the credentials to push to $(gitea_repo_url)"
     else
       bad "Kargo has no credentials for $(gitea_repo_url)" "run: make seed"
@@ -93,10 +95,87 @@ check_setup() {
   rm -f "$TOOLS_DIR/.page"
 }
 
+# --- Labs ----------------------------------------------------------------------------------
+
+# `TODO`s left in the attendee's own copy of a lab's files (work/lab-N/)
+check_todos() { # <lab number>
+  local dir="$ROOT_DIR/work/lab-$1" f hits
+  [[ -d "$dir" ]] || return 0
+  for f in "$dir"/*.yaml; do
+    [[ -f "$f" ]] || continue
+    hits="$(grep -n -E ':[[:space:]]+TODO([[:space:]]|$)' "$f" | head -3 | tr '\n' ' ' || true)"
+    [[ -z "$hits" ]] || bad "${f#"$ROOT_DIR"/} still has TODO to replace (line: $hits)" "replace it, then: kargo apply -f ${f#"$ROOT_DIR"/}"
+  done
+}
+
+# True when `kargo get <what> -o json` mentions a version of our image
+kargo_has() { # <kind> <pattern> [extra kargo args]
+  local kind="$1" pattern="$2"
+  shift 2
+  local out
+  out="$(kargo_cli get "$kind" --project "$KARGO_PROJECT" "$@" -o json 2>/dev/null || true)"
+  grep -q -E "$pattern" <<<"$out"
+}
+
+# What the guestbook of a stage runs: prints the version shown on its page
+stage_version() {
+  curl -s -m 8 --resolve "$(service_host "guestbook-$1"):${HTTP_PORT}:127.0.0.1" "$(service_url "guestbook-$1")/" 2>/dev/null |
+    sed -n 's/.*id="version">\([^<]*\)<.*/\1/p' | head -1
+}
+
+# The image tag a stage has in the GitOps repository (the "values.yaml" Kargo changes)
+repo_tag() { gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/raw/env/$1/k8s/values.yaml" 2>/dev/null | sed -n 's/^ *tag: *//p' | head -1; }
+
+check_lab1() {
+  local tag
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get warehouses --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="app" {f=1} END {exit !f}'; then
+    good "the Warehouse 'app' exists"
+  else
+    bad "there is no Warehouse 'app'" "run: kargo apply -f work/lab-1/warehouse.yaml (or make release VERSION=1.0.0)"
+  fi
+  if kargo_has freight '"tag": *"1\.0\.0"'; then
+    good "Freight with the image 1.0.0 exists"
+  else
+    bad "no Freight with the image 1.0.0 yet" "wait a minute after: make release VERSION=1.0.0"
+  fi
+  if kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="dev" {f=1} END {exit !f}'; then
+    good "the Stage 'dev' exists"
+  else
+    bad "there is no Stage 'dev'" "apply yours: kargo apply -f work/lab-1/stage-dev.yaml"
+  fi
+  check_todos 1
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev --no-headers 2>/dev/null || true)"
+  if grep -q 'Succeeded' <<<"$promotions"; then
+    good "a Promotion to 'dev' succeeded"
+  else
+    bad "no Promotion to 'dev' has succeeded" "promote the Freight: kargo promote --project $KARGO_PROJECT --freight-alias <alias> --stage dev; follow it with: kargo get promotions --project $KARGO_PROJECT --stage dev"
+  fi
+
+  section "Git and the applications"
+  tag="$(repo_tag dev)"
+  if [[ "$tag" == "1.0.0" ]]; then good "Git: env/dev/k8s/values.yaml has image tag 1.0.0"; else bad "Git: the dev values file has tag '${tag:-?}', not 1.0.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
+  commit="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/commits?limit=1" 2>/dev/null | tr -d ' \n' || true)"
+  if grep -q '"name":"kargo-bot"' <<<"$commit"; then
+    good "Git: the latest commit was made by kargo-bot"
+  else
+    bad "Git: the latest commit was not made by kargo-bot" "a promotion makes it: check that git-commit and git-push ran"
+  fi
+  tag="$(stage_version dev)"
+  if [[ "$tag" == "1.0.0" ]]; then good "dev runs 1.0.0 at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not 1.0.0" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
+  tag="$(stage_version staging)"
+  if [[ "$tag" == "0.9.0" ]]; then good "staging still runs 0.9.0: nothing moved past dev"; else bad "staging runs '${tag:-nothing}'" "in this lab only dev should change"; fi
+}
+
 case "$STEP" in
+  1) check_lab1 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup (the labs come in later phases)." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1." ;;
 esac
 
 printf '\n'

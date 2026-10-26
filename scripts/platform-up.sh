@@ -170,11 +170,23 @@ else
 fi
 
 step "Kargo agent '$AGENT' (self-hosted, linked to Argo CD '$ARGO')"
+mkdir -p "$WORK/agent"
+render_template "$ROOT_DIR/platform/kargo-agent-kustomization.yaml" >"$WORK/agent/kustomization.yaml"
 run akuity kargo agent create --server "$AKUITY_SERVER_URL" --organization-name "$ORG" \
-  --instance-name "$KARGO" --self-hosted --akuity-argocd-name "$ARGO" --default-shard --upsert "$AGENT"
+  --instance-name "$KARGO" --self-hosted --akuity-argocd-name "$ARGO" --default-shard \
+  --kustomization-path "$WORK/agent/kustomization.yaml" --upsert "$AGENT"
 run akuity kargo agent install --server "$AKUITY_SERVER_URL" --organization-name "$ORG" \
   --instance-name "$KARGO" --kubeconfig "$KUBECONFIG" --context "$CONTEXT" "$AGENT"
 wait_agents
+# The controller reads its settings once at start: restart it if it still runs without the Git-over-HTTP setting
+if [[ "$DRY_RUN" != 1 ]]; then
+  controller_env="$(kubectl -n "$AGENT_NS" exec "deploy/kargo-controller-$AGENT" -c controller -- env 2>/dev/null || true)"
+  if ! grep -qx 'ALLOW_CREDENTIALS_OVER_HTTP=true' <<<"$controller_env"; then
+    kubectl -n "$AGENT_NS" rollout restart "deploy/kargo-controller-$AGENT" >/dev/null
+    kubectl -n "$AGENT_NS" rollout status "deploy/kargo-controller-$AGENT" --timeout=180s >/dev/null
+    ok "Kargo controller restarted with the new settings"
+  fi
+fi
 
 # --- Summary -------------------------------------------------------------------------------
 if [[ "$DRY_RUN" != 1 ]]; then

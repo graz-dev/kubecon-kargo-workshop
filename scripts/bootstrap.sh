@@ -124,6 +124,8 @@ printf '\n'
 if [[ -z "$TOOLS_FAILED" && "$DOCTOR_RC" == 0 ]]; then
   printf '%sAll set.%s Nothing else to do until the workshop. Keep this folder as it is.\n' "$_C_GREEN" "$_C_RESET"
   printf 'Report saved in %s (no need to send it).\n' "${REPORT#"$ROOT_DIR"/}"
+  # shellcheck disable=SC2016 # $PWD and $PATH are meant to reach the attendee's shell as typed
+  printf '\nThe tools are in .tools/bin. To type kargo, kubectl and the others yourself, in each new terminal run:\n  export PATH="$PWD/.tools/bin:$PATH"\n'
   exit 0
 fi
 

@@ -13,6 +13,9 @@ if [[ -x "$TOOLS_BIN/akuity" && -z "$(prefix_problem)" ]] && akuity_logged_in; t
   printf '%-26s %s\n' "Argo CD" "$(akuity_instance_url argocd "$AKUITY_ARGOCD_INSTANCE" "$org")"
   if [[ -f "$ADMIN_ENV" ]]; then
     printf '%-26s %s\n' "  login (both)" "admin / $(sed -n 's/^ADMIN_PASSWORD=//p' "$ADMIN_ENV")"
+    # shellcheck disable=SC2016 # $PWD and $PATH are meant to reach the attendee's shell as typed
+    printf '\nKargo CLI:  export PATH="$PWD/.tools/bin:$PATH"\n            kargo login %s --admin --password %s\n\n' \
+      "$(akuity_instance_url kargo "$AKUITY_KARGO_INSTANCE" "$org")" "$(sed -n 's/^ADMIN_PASSWORD=//p' "$ADMIN_ENV")"
   fi
 else
   printf '%-26s %s\n' "Kargo / Argo CD" "$AKUITY_SERVER_URL   (set WORKSHOP_PREFIX and run make login to see your instance URLs)"

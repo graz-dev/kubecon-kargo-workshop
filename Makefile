@@ -53,11 +53,11 @@ release: ## Make a new image version visible to the Warehouse: make release VERS
 	$(if $(VERSION),,$(error VERSION is required, e.g. make release VERSION=1.1.0))
 	@scripts/release.sh $(VERSION)
 
-catchup: ## Apply the snapshot of a lab: make catchup STEP=2  [P1.5]
-	$(if $(STEP),,$(error STEP is required, e.g. make catchup STEP=2))
-	$(call stub,catchup,P1.5)
+catchup: ## Do a lab, and the ones before it, for you when you are behind: make catchup STEP=1
+	$(if $(STEP),,$(error STEP is required, e.g. make catchup STEP=1))
+	@scripts/catchup.sh $(STEP)
 
-check: ## Verify a step: make check STEP=setup (the labs add their own)
+check: ## Verify a step: make check STEP=setup, or a lab number: make check STEP=1
 	$(if $(STEP),,$(error STEP is required, e.g. make check STEP=setup))
 	@scripts/check.sh $(STEP)
 

@@ -2,15 +2,13 @@
 # Makes an image version visible to the Warehouse: the "developer's CI shipped a new release" moment.
 # In RELEASE_MODE=ghcr every version is already on ghcr.io, so this moves the ceiling of the Warehouse's image
 # constraint (">=1.0.0 <=VERSION") and changes its refresh annotation, which makes Kargo look at once.
-# If the Warehouse does not exist yet (before Lab 1) it only records the ceiling, and Lab 1 creates the Warehouse with it.
+# The first release also creates the Warehouse (the labs start with `make release VERSION=1.0.0`).
 #
 #   scripts/release.sh VERSION       SKIP_PLATFORM=1 only records the ceiling; DRY_RUN=1 shows what it would apply
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
-# shellcheck source=lib/seed.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/seed.sh"
 load_env
 
 VERSION="${1:-}"
@@ -44,18 +42,12 @@ else
 fi
 
 [[ "${SKIP_PLATFORM:-0}" != 1 ]] || exit 0
-platform_preflight
-if akuity kargo export "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG" 2>/dev/null | grep -q '^kind: Warehouse'; then
-  render_warehouse "$VERSION" >"$WORK/warehouse.yaml"
-  mkdir -p "$WORK/wh"
-  mv "$WORK/warehouse.yaml" "$WORK/wh/warehouse.yaml"
-  if [[ "$DRY_RUN" == 1 ]]; then
-    printf '  [dry-run] akuity kargo apply -f <the Warehouse below> --name %s\n' "$KARGO"
-    sed 's/^/      | /' "$WORK/wh/warehouse.yaml"
-  else
-    akuity kargo apply -f "$WORK/wh" --name "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG"
-    ok "the Warehouse sees $VERSION: new Freight appears in a moment"
-  fi
+render_warehouse "$VERSION" >"$WORK/warehouse.yaml"
+if [[ "$DRY_RUN" == 1 ]]; then
+  printf '  [dry-run] kargo apply -f <the Warehouse below>\n'
+  sed 's/^/      | /' "$WORK/warehouse.yaml"
 else
-  info "no Warehouse in the Kargo instance yet: the ceiling will be used when it is created"
+  kargo_login
+  kargo_cli apply -f "$WORK/warehouse.yaml" >/dev/null
+  ok "the Warehouse 'app' selects up to $VERSION: new Freight appears in a moment"
 fi

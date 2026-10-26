@@ -152,7 +152,38 @@ page: `guestbook-staging`, `guestbook-prod-amer-east`, `guestbook-prod-amer-west
 If you use another port than 80, add it to the address, for example `http://gitea.localtest.me:8080`.
 </details>
 
-## 7. Check everything
+## 7. Log in to the Kargo CLI
+
+The labs use the `kargo` command. Put your tools on your path, then log in. `make urls` prints both lines for you, with your address and
+password filled in:
+
+```sh
+export PATH="$PWD/.tools/bin:$PATH"
+kargo login <your Kargo address> --admin --password <your password>
+kargo get projects
+```
+
+<details>
+<summary>What it does</summary>
+
+The first line lets your terminal find the tools we downloaded for you, in this terminal window only. The second signs the `kargo`
+command in to your Kargo, as the `admin` account. The third lists the projects you can see.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+The last command shows the project `guestbook` as ready:
+
+```
+NAME        READY   STATUS                                AGE
+guestbook   True    Project is synced and ready for use   2m
+```
+
+Open a new terminal window later? Run the `export PATH=...` line again. The login is remembered.
+</details>
+
+## 8. Check everything
 
 Run:
 

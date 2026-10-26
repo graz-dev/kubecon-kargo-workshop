@@ -1,0 +1,59 @@
+# The dev Stage: where a new release lands first.
+# Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-dev","namespace":"argocd"}]'
+spec:
+  # Where this Stage gets Freight from: straight from the Warehouse
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        direct: true
+  # What a promotion to this Stage does, step by step
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag of dev in its values file
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: TODO    # the name of the value that holds the image tag
+                value: TODO  # the tag of the image in the Freight being promoted
+        # 3. Commit the change
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: TODO    # any text; say which tag goes to which Stage
+        # 4. Push it
+        - uses: git-push
+          config:
+            path: ./repo
+        # 5. Tell Argo CD to sync the dev application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-dev
+                namespace: argocd

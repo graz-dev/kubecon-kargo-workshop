@@ -7,7 +7,9 @@ Follow the guides in order. Each one is a short list of steps.
 | [00 - Before the workshop](00-before-the-workshop.md) | a few days before | Get the project, prepare your laptop |
 | [01 - Your environment](01-your-environment.md) | at the start of the workshop | Create your cluster and connect it to the Akuity Platform |
 
-The lab guides come after these.
+| [Lab 1 - Your first promotion](lab-1/README.md) | after the setup | Send the first release to `dev` |
+
+The other labs follow.
 
 ## How to read a step
 

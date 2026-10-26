@@ -78,6 +78,13 @@ At the end:
 All set. Nothing else to do until the workshop. Keep this folder as it is.
 ```
 
+The tools are now in the folder `.tools/bin`, not on your system. In the labs you type `kargo` yourself, so every time you open a
+new terminal in this folder, first run:
+
+```sh
+export PATH="$PWD/.tools/bin:$PATH"
+```
+
 If something is wrong, it lists what, for example `Docker memory`, `port 80` or `WORKSHOP_PREFIX`. Fix it and run the command again.
 It is safe to run as many times as you like.
 </details>

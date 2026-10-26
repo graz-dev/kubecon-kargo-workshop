@@ -329,16 +329,34 @@ KARGO_HOME="$TOOLS_DIR/kargo-home"
 
 kargo_cli() { HOME="$KARGO_HOME" "$TOOLS_BIN/kargo" "$@"; }
 
-# Logs the CLI in to the workshop's Kargo instance (needs `make login` and `make up`)
-kargo_login() {
-  local org url
-  ensure_admin_credentials
+# Address of the Kargo instance, kept in .tools/kargo-url so the labs do not need the Akuity session
+kargo_url() {
+  local url="" org
+  if [[ -f "$TOOLS_DIR/kargo-url" && "${1:-}" != refresh ]]; then
+    cat "$TOOLS_DIR/kargo-url"
+    return 0
+  fi
+  akuity_logged_in || die "Cannot find your Kargo address: you are not logged in to $AKUITY_SERVER_URL. Run: make login"
   org="$(akuity_org)"
   url="$(akuity_instance_url kargo "$AKUITY_KARGO_INSTANCE" "$org")"
   [[ -n "$url" ]] || die "The Kargo instance '$AKUITY_KARGO_INSTANCE' does not exist. Run: make up"
+  mkdir -p "$TOOLS_DIR"
+  printf '%s' "$url" >"$TOOLS_DIR/kargo-url"
+  printf '%s' "$url"
+}
+
+# Logs the CLI in to the workshop's Kargo instance with the admin account
+kargo_login() {
+  local url
+  ensure_admin_credentials
   mkdir -p "$KARGO_HOME"
-  kargo_cli login "$url" --admin --password "$ADMIN_PASSWORD" >/dev/null 2>&1 ||
-    die "Could not log in to Kargo at $url as admin. Run 'make up' again, and open the URL in a browser to see if it answers."
+  url="$(kargo_url)"
+  if ! kargo_cli login "$url" --admin --password "$ADMIN_PASSWORD" >/dev/null 2>&1; then
+    # the address may be stale (instance recreated): ask the platform again, once
+    url="$(kargo_url refresh)"
+    kargo_cli login "$url" --admin --password "$ADMIN_PASSWORD" >/dev/null 2>&1 ||
+      die "Could not log in to Kargo at $url as admin. Open the address in a browser: does it answer?"
+  fi
 }
 
 # --- Release state ----------------------------------------------------------------------------
