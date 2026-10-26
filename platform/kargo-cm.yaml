@@ -1,0 +1,12 @@
+# Enables the admin account of the Kargo instance (off by default).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kargo-cm
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: kargo
+    app.kubernetes.io/name: kargo
+data:
+  adminAccountEnabled: "true"
+  adminAccountTokenTtl: 24h

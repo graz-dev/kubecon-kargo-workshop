@@ -1,0 +1,11 @@
+# Images the cluster pulls, recorded from a running cluster on 2026-10-26 (best effort: the Akuity agents update
+# themselves, so their versions drift; `make up` also records what it really used in .tools/images-seen.txt and
+# `make prefetch` pulls both lists). The guestbook images and the helper images come from versions.env and the catalog.
+docker.gitea.com/gitea:1.27.0-rootless
+docker.io/traefik:v3.7.16
+quay.io/akuity/agent:0.5.103
+quay.io/akuity/haproxy:3.3.17-alpine
+quay.io/akuity/kargo:v1.12.4-ak.0
+quay.io/akuity/redis:7.2.16-alpine
+quay.io/argoproj/argo-rollouts:v1.9.0
+quay.io/argoproj/argocd:v3.4.12

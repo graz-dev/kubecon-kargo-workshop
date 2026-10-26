@@ -1,0 +1,42 @@
+# Traefik chart values (rendered by scripts/up.sh). Plain HTTP only: the UIs are local.
+deployment:
+  replicas: 1
+
+# Default IngressClass, so an Ingress without a class (e.g. the guestbook chart's) is served by Traefik
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+service:
+  spec:
+    type: NodePort
+
+ports:
+  web:
+    # kind publishes this NodePort on the host (HTTP_PORT)
+    nodePort: @@TRAEFIK_NODE_PORT@@
+    # The Service listens on HTTP_PORT too, so the same URL (http://gitea.<domain>:<port>) works from
+    # inside the cluster, where CoreDNS answers with this Service's ClusterIP
+    exposedPort: @@HTTP_PORT@@
+  websecure:
+    expose:
+      default: false
+
+api:
+  dashboard: false
+
+providers:
+  kubernetesIngress:
+    # Report an address on every Ingress. Without it an Ingress has no status.loadBalancer and Argo CD
+    # shows the Application as Progressing forever
+    publishedService:
+      enabled: false
+    ingressEndpoint:
+      ip: 127.0.0.1
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

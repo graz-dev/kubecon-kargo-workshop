@@ -1,0 +1,16 @@
+extends: default
+
+ignore: |
+  .tools/
+
+rules:
+  document-start: disable
+  line-length:
+    max: 160
+    level: warning
+  # Kargo and GitHub-style YAML use bare on/off/true keys
+  truthy:
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable

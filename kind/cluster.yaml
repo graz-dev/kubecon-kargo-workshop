@@ -1,0 +1,14 @@
+# kind cluster for the workshop. scripts/up.sh fills the placeholders from workshop.env and versions.env.
+# One node keeps the memory footprint low. The only port published on the host is Traefik's NodePort,
+# bound to BIND_ADDRESS (loopback by default) so the UIs are not exposed on the network.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: @@CLUSTER_NAME@@
+nodes:
+  - role: control-plane
+    image: @@KIND_NODE_IMAGE@@
+    extraPortMappings:
+      - containerPort: @@TRAEFIK_NODE_PORT@@
+        hostPort: @@HTTP_PORT@@
+        listenAddress: "@@BIND_ADDRESS@@"
+        protocol: TCP

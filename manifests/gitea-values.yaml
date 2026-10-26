@@ -1,0 +1,60 @@
+# Gitea chart values (filled in by scripts/gitea-up.sh). One pod, SQLite, nothing else: it only hosts the
+# workshop's GitOps repository and its pull requests.
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: @@GITEA_HOST@@
+      paths:
+        - path: /
+
+persistence:
+  enabled: true
+  size: 2Gi
+  annotations: {}
+
+gitea:
+  admin:
+    username: @@GITEA_ADMIN_USER@@
+    password: @@GITEA_ADMIN_PASSWORD@@
+    email: workshop-admin@workshop.local
+    passwordMode: keepUpdated
+  config:
+    server:
+      DOMAIN: @@GITEA_HOST@@
+      # The URL people (and Kargo) use: the pull request links Kargo shows come from it, so it must carry the port
+      ROOT_URL: "@@GITEA_URL@@/"
+      DISABLE_SSH: true
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    service:
+      DISABLE_REGISTRATION: true
+    repository:
+      DEFAULT_BRANCH: main
+    actions:
+      ENABLED: false
+    indexer:
+      REPO_INDEXER_ENABLED: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# Nothing but SQLite
+valkey:
+  enabled: false
+valkey-cluster:
+  enabled: false
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false

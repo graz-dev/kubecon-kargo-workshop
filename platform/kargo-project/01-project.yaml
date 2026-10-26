@@ -1,0 +1,5 @@
+# The Kargo project of the workshop. Warehouses and Stages are created by the labs, not here.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: @@KARGO_PROJECT@@

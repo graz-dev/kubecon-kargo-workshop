@@ -1,0 +1,42 @@
+# One Application per stage, all reading the GitOps repository in Gitea and deploying to the kind cluster.
+# The repo server runs in that cluster (repo server delegate), so the Gitea URL below is the same one the
+# browser uses. The annotation lets the matching Kargo stage run argocd-update on its Application.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - stage: dev
+          - stage: staging
+          - stage: prod-amer-east
+          - stage: prod-amer-west
+          - stage: prod-emea
+  template:
+    metadata:
+      name: 'guestbook-{{.stage}}'
+      annotations:
+        kargo.akuity.io/authorized-stage: '@@KARGO_PROJECT@@:{{.stage}}'
+    spec:
+      project: @@KARGO_PROJECT@@
+      source:
+        repoURL: @@GITEA_REPO_URL@@
+        targetRevision: @@GITEA_BRANCH@@
+        path: charts/guestbook
+        helm:
+          valueFiles:
+            - /env/{{.stage}}/k8s/values.yaml
+      destination:
+        name: @@CLUSTER_NAME@@
+        namespace: 'guestbook-{{.stage}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

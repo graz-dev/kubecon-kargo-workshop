@@ -1,0 +1,6 @@
+.env
+.tools/
+docs/
+LEGACY/
+.env.example
+CLAUDE.md

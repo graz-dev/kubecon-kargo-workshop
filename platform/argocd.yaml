@@ -1,0 +1,33 @@
+# Argo CD instance on the Akuity Platform, applied by scripts/platform-up.sh with `akuity argocd apply`.
+# The placeholders are filled from workshop.env / versions.env.
+#
+# The repo server and the ApplicationSet controller run in the kind cluster (the "delegates"): the Gitea in
+# that cluster is private, so a repo server on the platform could not read it. The cluster below is the one
+# the delegates point at; its agent is installed by `akuity argocd cluster install-agent`.
+# The platform refuses delegates that name a cluster which does not exist yet, so scripts/platform-up.sh applies
+# this file twice: first without the lines between the "delegates" markers (instance and cluster), then in full.
+apiVersion: argocd.akuity.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: @@AKUITY_ARGOCD_INSTANCE@@
+spec:
+  description: Kargo workshop (@@AKUITY_EMAIL@@)
+  version: @@AKUITY_ARGOCD_VERSION@@
+  instanceSpec:
+    # delegates:begin
+    repoServerDelegate:
+      managedCluster:
+        clusterName: @@CLUSTER_NAME@@
+    appSetDelegate:
+      managedCluster:
+        clusterName: @@CLUSTER_NAME@@
+    # delegates:end
+---
+apiVersion: argocd.akuity.io/v1alpha1
+kind: Cluster
+metadata:
+  name: @@CLUSTER_NAME@@
+spec:
+  description: kind cluster on the attendee's laptop
+  data:
+    size: small

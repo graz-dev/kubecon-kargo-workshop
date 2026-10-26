@@ -1,0 +1,20 @@
+# argocd-cm of the instance. The admin account is off by default ("Login is disabled" in the UI). It is switched
+# on with `accounts.admin: login`, as in the platform's declarative example. admin.enabled is NOT set here: the
+# platform manages it (it stayed "false" when we declared it) and derives it from the account.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  accounts.admin: login
+  exec.enabled: "false"
+  ga.anonymizeusers: "false"
+  helm.enabled: "true"
+  kustomize.enabled: "true"
+  server.rbac.log.enforce.enable: "false"
+  statusbadge.enabled: "false"
+  ui.bannerpermanent: "false"
+  users.anonymous.enabled: "false"

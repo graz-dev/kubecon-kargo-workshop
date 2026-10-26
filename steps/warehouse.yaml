@@ -1,0 +1,25 @@
+# The Warehouse of the guestbook, shared by every lab (it is the same in all of them).
+# `make release VERSION=x` moves the ceiling of the image constraint and changes the refresh annotation, which
+# makes Kargo look for new Freight at once. Versions below 1.0.0 (the 0.9.0 that runs before Kargo) never match.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: app
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/refresh: "@@REFRESH_TOKEN@@"
+spec:
+  subscriptions:
+    - image:
+        repoURL: @@CLUSTER_IMAGE_REPO@@
+        imageSelectionStrategy: SemVer
+        constraint: "@@IMAGE_CONSTRAINT@@"
+        discoveryLimit: 10
+    # The chart travels with the Freight. env/ is excluded: the promotions write there, and it would loop.
+    - git:
+        repoURL: @@GITEA_REPO_URL@@
+        branch: @@GITEA_BRANCH@@
+        includePaths:
+          - glob:charts/**
+        excludePaths:
+          - glob:env/**

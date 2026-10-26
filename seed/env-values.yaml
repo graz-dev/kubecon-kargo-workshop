@@ -1,0 +1,9 @@
+# Promotion target of the @@STAGE@@ stage: Kargo updates image.tag here, Argo CD deploys it.
+stage: @@STAGE@@
+replicaCount: 1
+image:
+  tag: @@INITIAL_VERSION@@
+ingress:
+  enabled: true
+  className: traefik
+  host: @@STAGE_HOST@@

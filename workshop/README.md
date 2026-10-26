@@ -1,0 +1,23 @@
+# Kargo workshop guides
+
+Follow the guides in order. Each one is a short list of steps.
+
+| Guide | When | What |
+|---|---|---|
+| [00 - Before the workshop](00-before-the-workshop.md) | a few days before | Get the project, prepare your laptop |
+| [01 - Your environment](01-your-environment.md) | at the start of the workshop | Create your cluster and connect it to the Akuity Platform |
+
+The lab guides come after these.
+
+## How to read a step
+
+Every step starts with **what to do**. Two folded boxes follow:
+
+- **What it does** explains the command.
+- **What you should see** tells you how to know it worked.
+
+Try the step first, then open the boxes.
+
+## If something goes wrong
+
+Run `make doctor`. It checks your laptop and tells you what to fix. If you are still stuck, ask for help in the room.
