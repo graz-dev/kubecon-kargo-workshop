@@ -5,3 +5,4 @@ LEGACY/
 .env.example
 CLAUDE.md
 work/
+.DS_Store
