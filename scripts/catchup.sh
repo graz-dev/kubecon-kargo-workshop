@@ -276,6 +276,46 @@ catchup_7() {
   fi
 }
 
+# The name of the Freight with this image tag (empty when there is none)
+freight_named() { # <tag>
+  kargo_cli get freight --project "$KARGO_PROJECT" -o jsonpath='{range .items[*]}{.metadata.name} {.images[0].tag}{"\n"}{end}' 2>/dev/null |
+    awk -v tag="$1" '$2 == tag {print $1; exit}' || true
+}
+
+has_rollback_promotion() {
+  local out
+  out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev -o yaml 2>/dev/null || true)"
+  grep -q 'kargo.akuity.io/rollback: "true"' <<<"$out"
+}
+
+dev_has_no_hold() {
+  local out
+  out="$(kargo_cli get stage dev --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  ! grep -q 'autoPromotionHolds' <<<"$out"
+}
+
+catchup_8() {
+  step "Lab 8: dev rolls itself back when the check of 1.3.0 fails"
+  local version
+  version="$(newest_freight_tag)"
+  [[ -n "$version" ]] || die "There is no Freight yet."
+  apply_step_file 8 project-config.yaml
+  if has_rollback_promotion; then
+    ok "dev has already rolled itself back once"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_named 1.3.0)" --stage dev >/dev/null
+    ok "1.3.0 promoted to dev"
+    wait_for 240 "Kargo rolled dev back by itself" has_rollback_promotion
+  fi
+  wait_for 240 "dev runs $version again" stage_runs dev "$version"
+  if ! dev_has_no_hold; then
+    # the rollback put a hold on auto-promotion: promoting the current candidate lifts it
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    wait_for 120 "the hold on dev is gone" dev_has_no_hold
+  fi
+  wait_for 240 "$version is verified in dev" freight_is_verified dev "$version"
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
@@ -286,6 +326,7 @@ for n in $(seq 1 "$TARGET"); do
     5) catchup_5 ;;
     6) catchup_6 ;;
     7) catchup_7 ;;
+    8) catchup_8 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

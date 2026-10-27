@@ -10,6 +10,7 @@
 #   scripts/check.sh 5            lab 5: staging waits for a pull request in Gitea, 1.3.1 reaches staging when it is merged
 #   scripts/check.sh 6            lab 6: the Warehouse follows the registry, the live release goes through every Stage
 #   scripts/check.sh 7            lab 7: the inbox received a message for a promotion that succeeded and one that failed
+#   scripts/check.sh 8            lab 8: dev rolled itself back to the stable Freight when the check of 1.3.0 failed
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -456,6 +457,44 @@ check_lab7() {
   fi
 }
 
+check_lab8() {
+  local version stage_yaml tag
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get projectconfig --project "$KARGO_PROJECT" -o yaml 2>/dev/null | grep -q 'autoRollback'; then
+    good "the project has an automatic rollback policy"
+  else
+    bad "no automatic rollback policy" "apply yours: kargo apply -f work/lab-8/project-config.yaml"
+  fi
+  check_todos 8
+  if kargo_has freight '"tag": *"1\.3\.0"' && [[ -z "$(freight_verified_in dev 1.3.0)" ]]; then
+    good "1.3.0 was never verified in dev: its check failed"
+  else
+    bad "1.3.0 is verified in dev, or does not exist" "promote the broken version to dev: kargo promote --project $KARGO_PROJECT --freight-alias <alias of 1.3.0> --stage dev"
+  fi
+  if kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev -o yaml 2>/dev/null | grep -q 'kargo.akuity.io/rollback: "true"'; then
+    good "dev has a rollback Promotion that Kargo made by itself"
+  else
+    bad "no rollback Promotion on dev" "promote 1.3.0 to dev with the policy applied, and wait a minute"
+  fi
+  stage_yaml="$(kargo_cli get stage dev --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'autoPromotionHolds' <<<"$stage_yaml"; then
+    bad "dev still has a hold on auto-promotion" "resume it by promoting the current candidate: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app"
+  else
+    good "dev has no hold: auto-promotion is back"
+  fi
+
+  section "Git and the applications"
+  version="$(newest_freight_tag)"
+  tag="$(repo_tag dev)"
+  if [[ -n "$version" && "$tag" == "$version" ]]; then good "Git: env/dev/k8s/values.yaml has image tag $version, the newest"; else bad "Git: the dev values file has tag '${tag:-?}', not the newest ($version)" "the rollback has not finished: look at the Promotions of dev"; fi
+  tag="$(stage_version dev)"
+  if [[ -n "$version" && "$tag" == "$version" ]]; then good "dev runs $version at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not $version" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -464,9 +503,10 @@ case "$STEP" in
   5) check_lab5 ;;
   6) check_lab6 ;;
   7) check_lab7 ;;
+  8) check_lab8 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8." ;;
 esac
 
 printf '\n'

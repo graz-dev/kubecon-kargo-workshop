@@ -13,6 +13,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [Lab 5 - A pull request as approval](lab-5/README.md) | after Lab 4 | `staging` waits until someone merges a pull request | Open source |
 | [Lab 6 - Kargo finds the releases](lab-6/README.md) | after Lab 5 | The Warehouse follows the registry: a live release goes all the way to production | Open source |
 | [Lab 7 - Notifications](lab-7/README.md) | after Lab 6 | Get a message when a promotion succeeds or fails | Enterprise |
+| [Lab 8 - Automatic rollback](lab-8/README.md) | after Lab 7 | A broken release goes back by itself | Enterprise |
 
 The other labs follow. The **Features** column says whether a lab uses open-source Kargo or Kargo Enterprise features.
 

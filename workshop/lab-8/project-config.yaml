@@ -1,0 +1,19 @@
+# The settings of the project. dev already promotes by itself. Now it also goes back by itself when a check fails.
+# Replace the TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: guestbook
+  namespace: guestbook
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+      # What to do when something goes wrong in this Stage
+      autoRollback:
+        onVerification:
+          - TODO    # the result of a check that should trigger the rollback: Failed or Error
+    - stageSelector:
+        name: "glob:prod-*"
+      autoPromotionEnabled: true
