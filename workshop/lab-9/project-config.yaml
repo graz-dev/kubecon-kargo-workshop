@@ -1,0 +1,30 @@
+# The settings of the project. Lab 8 turned on automatic rollback for dev. Now a freeze can close the door to prod.
+# Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: guestbook
+  namespace: guestbook
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+      autoRollback:
+        onVerification:
+          - Failed
+    - stageSelector:
+        name: "glob:prod-*"
+      autoPromotionEnabled: true
+  # When promotions are not allowed. Times are UTC.
+  promotionWindows:
+    - name: workshop-freeze
+      kind: TODO    # Allow or Deny: this window forbids promotions
+      description: "Nothing goes to production during the freeze"
+      disabled: TODO    # true or false: false while the freeze is on, true to lift it
+      stageSelector:
+        name: prod
+      # Every day, from midnight to the last second of the day
+      rrule: FREQ=DAILY
+      dtstart: "20260101T000000"
+      dtend: "20260101T235959"

@@ -401,6 +401,16 @@ newest_freight_tag() {
   kargo_cli get freight --project "$KARGO_PROJECT" -o jsonpath='{range .items[*]}{.images[0].tag}{"\n"}{end}' 2>/dev/null | sort -V | tail -1 || true
 }
 
+# A call to the Kargo API as the logged-in admin: kargo_api <method> <path> [json]; prints the answer
+kargo_api() {
+  local conf="$KARGO_HOME/.config/kargo/config" addr token args=()
+  addr="$(sed -n 's/^apiAddress: *//p' "$conf")"
+  token="$(sed -n 's/^bearerToken: *//p' "$conf")"
+  [[ -n "${3:-}" ]] && args=(-d "$3")
+  curl -sS -m 30 -X "$1" -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+    ${args[@]+"${args[@]}"} "$addr$2"
+}
+
 # --- The inbox of Lab 7 (webhook.site: an address that keeps what is sent to it; no account) -----
 INBOX_FILE="$TOOLS_DIR/inbox"
 

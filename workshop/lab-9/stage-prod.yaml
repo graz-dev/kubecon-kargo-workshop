@@ -1,0 +1,92 @@
+# The prod Stage again. Before anything changes, a person says why and a person approves, and the approval is recorded.
+# Replace every TODO. Everything else is ready.
+# There is no argocd-update here: prod only writes to Git. The regions have their own Stages (next file).
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: guestbook
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 1. Ask the person who promotes why this goes to production: a form in the Kargo UI
+        - uses: get-user-input
+          as: reason
+          config:
+            display: Why does this version go to production?
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  title: Reason
+        # 2. Wait until somebody approves
+        - uses: wait-for-approval
+          as: approve
+          config:
+            minApprovals: 1
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag in the values file of every region
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # 3. One commit for all three regions
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        # 4. Push it
+        - uses: git-push
+          config:
+            path: ./repo
+        # Last: write down who approved, and why. It is kept in the audit log.
+        - uses: record-audit-event
+          as: audit
+          retry:
+            errorThreshold: 3
+          config:
+            type: approved
+            message: "Release ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }} approved by ${{ outputs.approve.responses[0].user }}."
+            actor: TODO    # who approved: the user of the first response of the approval step
+            data:
+              reason: TODO    # what they wrote in the form: the value reason of the step called reason

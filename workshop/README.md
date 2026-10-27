@@ -14,6 +14,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [Lab 6 - Kargo finds the releases](lab-6/README.md) | after Lab 5 | The Warehouse follows the registry: a live release goes all the way to production | Open source |
 | [Lab 7 - Notifications](lab-7/README.md) | after Lab 6 | Get a message when a promotion succeeds or fails | Enterprise |
 | [Lab 8 - Automatic rollback](lab-8/README.md) | after Lab 7 | A broken release goes back by itself | Enterprise |
+| [Lab 9 - Governance](lab-9/README.md) | after Lab 8 | A freeze, an approval and an audit trail for production | Enterprise |
 
 The other labs follow. The **Features** column says whether a lab uses open-source Kargo or Kargo Enterprise features.
 

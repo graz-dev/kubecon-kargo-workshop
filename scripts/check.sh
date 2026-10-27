@@ -11,6 +11,7 @@
 #   scripts/check.sh 6            lab 6: the Warehouse follows the registry, the live release goes through every Stage
 #   scripts/check.sh 7            lab 7: the inbox received a message for a promotion that succeeded and one that failed
 #   scripts/check.sh 8            lab 8: dev rolled itself back to the stable Freight when the check of 1.3.0 failed
+#   scripts/check.sh 9            lab 9: a freeze window on prod, and a promotion to prod that asked for a reason, an approval and an audit event
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -495,6 +496,44 @@ check_lab8() {
   if [[ -n "$version" && "$tag" == "$version" ]]; then good "dev runs $version at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not $version" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
 }
 
+check_lab9() {
+  local config stage_yaml promotions
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  config="$(kargo_cli get projectconfig --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'name: workshop-freeze' <<<"$config" && grep -q 'kind: Deny' <<<"$config"; then
+    good "the project has a freeze window on prod"
+  else
+    bad "no Deny window called workshop-freeze" "apply yours: kargo apply -f work/lab-9/project-config.yaml"
+  fi
+  if grep -q 'disabled: true' <<<"$config"; then
+    good "the freeze is lifted: prod accepts promotions"
+  else
+    bad "the freeze is still on" "set disabled to true in work/lab-9/project-config.yaml and apply it again"
+  fi
+  stage_yaml="$(kargo_cli get stage prod --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'get-user-input' <<<"$stage_yaml" && grep -q 'wait-for-approval' <<<"$stage_yaml" && grep -q 'record-audit-event' <<<"$stage_yaml"; then
+    good "prod asks for a reason, waits for an approval and records an audit event"
+  else
+    bad "prod is missing one of the three steps" "apply yours: kargo apply -f work/lab-9/stage-prod.yaml"
+  fi
+  check_todos 9
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage prod -o yaml 2>/dev/null || true)"
+  if grep -q 'action: approve' <<<"$promotions"; then
+    good "a promotion to prod was approved"
+  else
+    bad "no promotion to prod has been approved" "promote, then answer the form and approve in the Kargo UI: kargo promote --project $KARGO_PROJECT --stage prod --warehouse app"
+  fi
+  if grep -q 'recorded audit event "approved"' <<<"$promotions"; then
+    good "the approval was recorded in the audit log"
+  else
+    bad "no audit event was recorded" "it is written by the last step of the promotion: look at the steps of the promotion in Kargo"
+  fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -504,9 +543,10 @@ case "$STEP" in
   6) check_lab6 ;;
   7) check_lab7 ;;
   8) check_lab8 ;;
+  9) check_lab9 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9." ;;
 esac
 
 printf '\n'

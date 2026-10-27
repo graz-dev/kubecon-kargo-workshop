@@ -1,0 +1,26 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: @@KARGO_PROJECT@@
+  namespace: @@KARGO_PROJECT@@
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+      autoRollback:
+        onVerification:
+          - Failed
+    - stageSelector:
+        name: "glob:prod-*"
+      autoPromotionEnabled: true
+  promotionWindows:
+    - name: workshop-freeze
+      kind: Deny
+      description: "Nothing goes to production during the freeze"
+      disabled: true
+      stageSelector:
+        name: prod
+      rrule: FREQ=DAILY
+      dtstart: "20260101T000000"
+      dtend: "20260101T235959"

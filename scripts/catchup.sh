@@ -316,6 +316,51 @@ catchup_8() {
   wait_for 240 "$version is verified in dev" freight_is_verified dev "$version"
 }
 
+# The newest promotion of a Stage (its name)
+newest_promotion() { # <stage>
+  kargo_cli get promotions --project "$KARGO_PROJECT" --stage "$1" --no-headers 2>/dev/null | tail -1 | cut -d' ' -f1 || true
+}
+
+# True when a step of a promotion is waiting for a person
+promotion_step_waiting() { # <promotion> <step alias>
+  kargo_cli get promotion "$1" --project "$KARGO_PROJECT" -o yaml 2>/dev/null |
+    awk -v a="$2" '/- alias:/ {cur = $3} cur == a && /status: Running/ {f = 1} END {exit !f}'
+}
+
+promotion_finished() { # <promotion>
+  local out
+  out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --no-headers 2>/dev/null || true)"
+  grep -q -E "^$1 .* (Succeeded|Failed|Errored|Aborted) " <<<"$out"
+}
+
+prod_was_approved() {
+  local out
+  out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage prod -o yaml 2>/dev/null || true)"
+  grep -q 'recorded audit event "approved"' <<<"$out"
+}
+
+catchup_9() {
+  step "Lab 9: a freeze window (lifted), and a promotion to prod that asks for a reason, an approval and an audit event"
+  local name
+  apply_step_file 9 project-config.yaml
+  apply_step_file 9 stage-prod.yaml
+  if prod_was_approved; then
+    ok "a promotion to prod was already approved and recorded"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage prod >/dev/null
+    name="$(newest_promotion prod)"
+    ok "promotion $name started"
+    # the attendee answers in the Kargo UI: here it is the call the UI makes, with the same user
+    wait_for 120 "the promotion asks for a reason" promotion_step_waiting "$name" reason
+    kargo_api POST "/enterprise/v1beta1/projects/$KARGO_PROJECT/promotions/$name/steps/reason/respond" \
+      '{"action":"submit","values":{"reason":"Catch-up: approved by the workshop script"}}' >/dev/null
+    wait_for 120 "the promotion waits for the approval" promotion_step_waiting "$name" approve
+    kargo_api POST "/enterprise/v1beta1/projects/$KARGO_PROJECT/promotions/$name/steps/approve/respond" '{"action":"approve"}' >/dev/null
+    wait_for 180 "the promotion to prod finished" promotion_finished "$name"
+    wait_for 60 "the approval was recorded" prod_was_approved
+  fi
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
@@ -327,6 +372,7 @@ for n in $(seq 1 "$TARGET"); do
     6) catchup_6 ;;
     7) catchup_7 ;;
     8) catchup_8 ;;
+    9) catchup_9 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done
