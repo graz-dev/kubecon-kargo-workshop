@@ -50,8 +50,11 @@ fi
 printf '%s' "$FIRST_RELEASE" >"$RELEASE_FILE"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
   apply_kargo_project yes
-  # Pruning a Warehouse leaves its Freight behind, and a new Warehouse called 'app' would adopt it: delete it too
+  # The credentials of the Lab 7 channel are a plain Secret: the prune does not know it
   kargo_login
+  kargo_cli delete generic-credentials --project "$KARGO_PROJECT" inbox-credentials >/dev/null 2>&1 || true
+  rm -f "$INBOX_FILE"
+  # Pruning a Warehouse leaves its Freight behind, and a new Warehouse called 'app' would adopt it: delete it too
   freight=()
   while IFS= read -r name; do
     [[ -z "$name" ]] || freight+=(--name "$name")

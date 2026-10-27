@@ -48,6 +48,11 @@ promotion_succeeded() {
   out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage "$1" --no-headers 2>/dev/null || true)"
   grep -q 'Succeeded' <<<"$out"
 }
+stage_ready() { # <stage>: true when the Stage reports Ready
+  local out
+  out="$(kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null || true)"
+  grep -q -E "^$1 .* True " <<<"$out"
+}
 stage_runs() { [[ "$(stage_version "$1")" == "$2" ]]; } # stage_runs <stage> <version>
 
 # Renders steps/<N>/<file> with this machine's settings and applies it with the kargo CLI
@@ -227,6 +232,50 @@ catchup_6() {
   done
 }
 
+# True when the inbox has received something that matches
+inbox_has() { # <id> <text>
+  grep -q "$2" <<<"$(inbox_content "$1")"
+}
+
+catchup_7() {
+  step "Lab 7: an inbox, a channel, a router, one promotion that succeeds and one that fails"
+  local id number
+  id="$(inbox_uuid)"
+  if [[ -z "$id" ]]; then
+    id="$(inbox_create)"
+    [[ -n "$id" ]] || die "Could not create an inbox at webhook.site. Check your connection and try again."
+    mkdir -p "$TOOLS_DIR"
+    printf '%s' "$id" >"$INBOX_FILE"
+  fi
+  export INBOX_URL="https://webhook.site/$id"
+  ok "your inbox: https://webhook.site/#!/view/$id"
+  if ! kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="inbox-credentials" {f=1} END {exit !f}'; then
+    kargo_cli create generic-credentials --project "$KARGO_PROJECT" inbox-credentials --set bearerToken=workshop >/dev/null
+    ok "credentials inbox-credentials created"
+  fi
+  apply_step_file 7 message-channel.yaml
+  apply_step_file 7 event-router.yaml
+  if inbox_has "$id" PromotionSucceeded; then
+    ok "the inbox already has a message for a promotion that succeeded"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    wait_for 120 "the inbox received PromotionSucceeded" inbox_has "$id" PromotionSucceeded
+  fi
+  if inbox_has "$id" PromotionFailed; then
+    ok "the inbox already has a message for a promotion that failed"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.3.1)" --stage staging >/dev/null
+    wait_for 120 "Kargo opened a pull request in Gitea" has_open_pull_request
+    number="$(open_pull_request)"
+    gitea_api PATCH "/repos/$GITEA_ORG/$GITEA_REPO/pulls/$number" -o /dev/null -d '{"state":"closed"}'
+    ok "pull request $number closed without merging"
+    wait_for 120 "the inbox received PromotionFailed" inbox_has "$id" PromotionFailed
+    # a failed promotion leaves staging with an error until the next one: promote what it already has
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage staging >/dev/null
+    wait_for 120 "staging is ready again" stage_ready staging
+  fi
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
@@ -236,6 +285,7 @@ for n in $(seq 1 "$TARGET"); do
     4) catchup_4 ;;
     5) catchup_5 ;;
     6) catchup_6 ;;
+    7) catchup_7 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

@@ -9,6 +9,7 @@
 #   scripts/check.sh 4            lab 4: verification on dev and staging, the failed 1.3.0, the rollback, the hold and the fix 1.3.1
 #   scripts/check.sh 5            lab 5: staging waits for a pull request in Gitea, 1.3.1 reaches staging when it is merged
 #   scripts/check.sh 6            lab 6: the Warehouse follows the registry, the live release goes through every Stage
+#   scripts/check.sh 7            lab 7: the inbox received a message for a promotion that succeeded and one that failed
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -421,6 +422,40 @@ check_lab6() {
   done
 }
 
+check_lab7() {
+  local id content
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="inbox-credentials" {f=1} END {exit !f}'; then
+    good "the credentials of the channel exist"
+  else
+    bad "no credentials called inbox-credentials" "create them: kargo create generic-credentials --project $KARGO_PROJECT inbox-credentials --set bearerToken=workshop"
+  fi
+  check_todos 7
+
+  section "The inbox"
+  id="$(inbox_uuid)"
+  if [[ -z "$id" ]]; then
+    bad "I cannot find your inbox" "put its address in work/lab-7/message-channel.yaml (the line url:), then apply the file"
+    return 0
+  fi
+  good "your inbox is https://webhook.site/#!/view/$id"
+  content="$(inbox_content "$id")"
+  if grep -q 'PromotionSucceeded' <<<"$content"; then
+    good "the inbox received a message for a promotion that succeeded"
+  else
+    bad "nothing about a successful promotion in the inbox" "apply the channel and the router, then promote: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app"
+  fi
+  if grep -q 'PromotionFailed' <<<"$content"; then
+    good "the inbox received a message for a promotion that failed"
+  else
+    bad "nothing about a failed promotion in the inbox" "promote an older version to staging and close its pull request in Gitea without merging it"
+  fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -428,9 +463,10 @@ case "$STEP" in
   4) check_lab4 ;;
   5) check_lab5 ;;
   6) check_lab6 ;;
+  7) check_lab7 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7." ;;
 esac
 
 printf '\n'

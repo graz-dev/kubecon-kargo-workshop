@@ -1,0 +1,33 @@
+# Extra, optional: the same router, now writing to the inbox and to your email.
+# Replace the address in "to".
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: EventRouter
+metadata:
+  name: promotion-status
+  namespace: guestbook
+spec:
+  types:
+    - PromotionSucceeded
+    - PromotionFailed
+    - PromotionErrored
+  channels:
+    - name: inbox
+      kind: MessageChannel
+      encodingType: yaml
+      output: |
+        body:
+          event: ${{ type }}
+          project: ${{ event.project }}
+          stage: ${{ event.stageName }}
+          promotion: ${{ event.name }}
+    - name: email
+      kind: MessageChannel
+      encodingType: yaml
+      output: |
+        to: [you@gmail.com]
+        subject: "[Kargo] ${{ type }}: ${{ event.project }}/${{ event.stageName }}"
+        body: |
+          Project:   ${{ event.project }}
+          Stage:     ${{ event.stageName }}
+          Promotion: ${{ event.name }}
+          Result:    ${{ type }}

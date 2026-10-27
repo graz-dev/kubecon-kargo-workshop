@@ -1,0 +1,13 @@
+# Where the messages go: an inbox on the web that anybody with its address can open.
+# Replace the TODO. Everything else is ready.
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: MessageChannel
+metadata:
+  name: inbox
+  namespace: guestbook
+spec:
+  # A channel always points to a Secret, even when the destination needs no password
+  secretRef:
+    name: inbox-credentials
+  http:
+    url: TODO    # the address of your inbox, from webhook.site

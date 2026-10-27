@@ -1,0 +1,17 @@
+# Extra, optional: a channel that sends a real email through Gmail.
+# Replace the two addresses. The credentials are in the Secret smtp-credentials, not in this file.
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: MessageChannel
+metadata:
+  name: email
+  namespace: guestbook
+spec:
+  secretRef:
+    name: smtp-credentials
+  smtp:
+    from: you@gmail.com    # the Gmail account that owns the app password
+    to:
+      - you@gmail.com      # where the email goes
+    host: smtp.gmail.com
+    port: 587
+    useTLS: true

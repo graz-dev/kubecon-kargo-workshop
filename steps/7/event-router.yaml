@@ -1,0 +1,20 @@
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: EventRouter
+metadata:
+  name: promotion-status
+  namespace: @@KARGO_PROJECT@@
+spec:
+  types:
+    - PromotionSucceeded
+    - PromotionFailed
+    - PromotionErrored
+  channels:
+    - name: inbox
+      kind: MessageChannel
+      encodingType: yaml
+      output: |
+        body:
+          event: ${{ type }}
+          project: ${{ event.project }}
+          stage: ${{ event.stageName }}
+          promotion: ${{ event.name }}

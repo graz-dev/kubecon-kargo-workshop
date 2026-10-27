@@ -1,0 +1,23 @@
+# Which events to follow, and what to write about them. The router does not send anything: the channel does.
+# Replace every TODO. Everything else is ready.
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: EventRouter
+metadata:
+  name: promotion-status
+  namespace: guestbook
+spec:
+  types:
+    - PromotionSucceeded
+    - TODO    # the event for a promotion that did not complete
+    - PromotionErrored
+  channels:
+    - name: inbox
+      kind: MessageChannel
+      # The message is built from the event, between ${{ and }}
+      encodingType: yaml
+      output: |
+        body:
+          event: ${{ type }}
+          project: ${{ event.project }}
+          stage: TODO
+          promotion: ${{ event.name }}

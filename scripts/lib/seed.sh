@@ -34,13 +34,24 @@ apply_kargo_project() {
   for f in 01-project 02-credentials; do
     render_template "$ROOT_DIR/platform/kargo-project/$f.yaml" >"$dir/$f.yaml"
   done
-  local prune_types='stages,warehouses,project-configs,analysis-templates,promotion-tasks,custom-promotion-steps'
+  local prune_types='stages,warehouses,project-configs,analysis-templates,promotion-tasks,custom-promotion-steps,event-routers,message-channels'
   local args=(-f "$dir" --name "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG")
   [[ "$prune" != yes ]] || args+=(--prune "$prune_types")
   if [[ "$DRY_RUN" == 1 ]]; then
     printf '  [dry-run] akuity kargo apply -f <Project and git credentials>%s\n' "$([[ "$prune" == yes ]] && echo " --prune $prune_types")"
     sed 's/^/      | /' "$dir/01-project.yaml"
   else
+    if [[ "$prune" == yes ]]; then
+      # A channel cannot be deleted while a router still points to it: routers go first, on their own
+      akuity kargo apply -f "$dir" --name "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG" --prune event-routers
+      # (the platform needs a few seconds to see that the routers are gone)
+      local try
+      for try in 1 2 3 4 5 6; do
+        akuity kargo apply "${args[@]}" && return 0
+        ((try == 6)) || sleep 5
+      done
+      return 1
+    fi
     akuity kargo apply "${args[@]}"
   fi
 }

@@ -1,0 +1,10 @@
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: MessageChannel
+metadata:
+  name: inbox
+  namespace: @@KARGO_PROJECT@@
+spec:
+  secretRef:
+    name: inbox-credentials
+  http:
+    url: @@INBOX_URL@@

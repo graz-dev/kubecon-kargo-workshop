@@ -401,6 +401,29 @@ newest_freight_tag() {
   kargo_cli get freight --project "$KARGO_PROJECT" -o jsonpath='{range .items[*]}{.images[0].tag}{"\n"}{end}' 2>/dev/null | sort -V | tail -1 || true
 }
 
+# --- The inbox of Lab 7 (webhook.site: an address that keeps what is sent to it; no account) -----
+INBOX_FILE="$TOOLS_DIR/inbox"
+
+# Creates an inbox and prints its id
+inbox_create() {
+  curl -s -m 20 -X POST https://webhook.site/token -H 'Content-Type: application/json' \
+    -d '{"default_status":200,"default_content":"ok","default_content_type":"text/plain","expiry":true}' |
+    sed -n 's/.*"uuid": *"\([0-9a-f-]*\)".*/\1/p' | head -1
+}
+
+# The id of the inbox in use: the one in the attendee's file, or the one catchup made
+inbox_uuid() {
+  local file="$ROOT_DIR/work/lab-7/message-channel.yaml" id=""
+  [[ ! -f "$file" ]] || id="$(sed -n 's#^ *url: *https://webhook.site/\([0-9a-f-]*\).*#\1#p' "$file" | head -1)"
+  if [[ -z "$id" && -f "$INBOX_FILE" ]]; then id="$(cat "$INBOX_FILE")"; fi
+  printf '%s' "$id"
+}
+
+# Everything the inbox received, on one line (empty when nothing, or when it cannot be read)
+inbox_content() { # <id>
+  curl -s -m 20 "https://webhook.site/token/$1/requests?per_page=100" 2>/dev/null | tr -d '\n' || true
+}
+
 # --- Small utilities -----------------------------------------------------------
 
 have() { command -v "$1" >/dev/null 2>&1; }

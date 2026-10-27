@@ -38,7 +38,8 @@ fi
 load_env
 info "lab skeletons against their solutions"
 strip() { sed -E 's/[[:space:]]+#.*$//; /^[[:space:]]*#/d; /^[[:space:]]*$/d' "$1"; }
-export GITEA_REPO_URL CLUSTER_IMAGE_REPO
+export GITEA_REPO_URL CLUSTER_IMAGE_REPO INBOX_URL
+INBOX_URL=TODO # the address of the inbox is the attendee's own: the skeleton has TODO there too
 GITEA_REPO_URL="$(gitea_repo_url)"
 CLUSTER_IMAGE_REPO="$(image_repo_cluster)"
 for sk in workshop/lab-*/*.yaml; do
