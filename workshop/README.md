@@ -8,6 +8,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [01 - Your environment](01-your-environment.md) | at the start of the workshop | Create your cluster and connect it to the Akuity Platform |
 | [Lab 1 - Your first promotion](lab-1/README.md) | after the setup | Send the first release to `dev` |
 | [Lab 2 - Build the pipeline](lab-2/README.md) | after Lab 1 | Add `staging`, let `dev` promote by itself |
+| [Lab 3 - Production in three regions](lab-3/README.md) | after Lab 2 | Add the `prod` gate and three regions that follow it |
 
 The other labs follow.
 

@@ -1,0 +1,77 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-east
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-east","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-east
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-west
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-west","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-west
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-emea
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-emea","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-emea
+                namespace: argocd

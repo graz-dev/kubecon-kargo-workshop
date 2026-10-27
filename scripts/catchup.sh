@@ -103,11 +103,41 @@ catchup_2() {
   wait_for 240 "staging runs 1.1.0" stage_runs staging 1.1.0
 }
 
+catchup_3() {
+  step "Lab 3: the prod gate, the three regions, release 1.2.0 all the way to production"
+  apply_step_file 3 stage-prod.yaml
+  apply_step_file 3 stage-prod-regions.yaml
+  apply_step_file 3 project-config.yaml
+  "$LIB_DIR/../release.sh" 1.2.0
+  wait_for 120 "Freight with the image 1.2.0 was created" has_freight 1.2.0
+  wait_for 300 "dev runs 1.2.0 (promoted by Kargo)" stage_runs dev 1.2.0
+  if [[ "$(repo_tag staging)" == "1.2.0" ]]; then
+    ok "staging already has 1.2.0: nothing to promote"
+  else
+    wait_for 120 "Freight 1.2.0 is verified in dev" freight_is_verified dev 1.2.0
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage staging >/dev/null
+    ok "promotion to staging started"
+  fi
+  wait_for 240 "staging runs 1.2.0" stage_runs staging 1.2.0
+  if [[ "$(repo_tag prod-emea)" == "1.2.0" ]]; then
+    ok "production already has 1.2.0: nothing to promote"
+  else
+    wait_for 120 "Freight 1.2.0 is verified in staging" freight_is_verified staging 1.2.0
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.2.0)" --stage prod >/dev/null
+    ok "promotion to prod started"
+  fi
+  # the three regions follow prod by themselves
+  for region in prod-amer-east prod-amer-west prod-emea; do
+    wait_for 300 "$region runs 1.2.0" stage_runs "$region" 1.2.0
+  done
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
     1) catchup_1 ;;
     2) catchup_2 ;;
+    3) catchup_3 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

@@ -1,0 +1,16 @@
+# The settings of the project. Lab 2 turned on auto-promotion for dev. Now the regions follow prod by themselves.
+# Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: guestbook
+  namespace: guestbook
+spec:
+  promotionPolicies:
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+    # One policy for the three regions: their names all start with prod-, and prod itself does not
+    - stageSelector:
+        name: TODO    # a pattern that matches prod-amer-east, prod-amer-west and prod-emea, but not prod
+      autoPromotionEnabled: true

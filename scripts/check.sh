@@ -5,6 +5,7 @@
 #   scripts/check.sh setup        the environment of phase 1: cluster, Gitea, the platform, the five apps, the Kargo project
 #   scripts/check.sh 1            lab 1: the Warehouse, the Freight, the dev Stage, a successful promotion, Git and the app
 #   scripts/check.sh 2            lab 2: the staging Stage, auto-promotion on dev, release 1.1.0 on dev, staging promoted by hand
+#   scripts/check.sh 3            lab 3: the prod gate and the three regions, release 1.2.0 all the way to production
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -219,12 +220,58 @@ check_lab2() {
   if [[ "$tag" == "0.9.0" ]]; then good "production still runs 0.9.0: nothing moved past staging"; else bad "production runs '${tag:-nothing}'" "in this lab only dev and staging should change"; fi
 }
 
+check_lab3() {
+  local tag promotions stage
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  for stage in prod prod-amer-east prod-amer-west prod-emea; do
+    if kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk -v s="$stage" '$1==s {f=1} END {exit !f}'; then
+      good "the Stage '$stage' exists"
+    else
+      bad "there is no Stage '$stage'" "apply yours: kargo apply -f work/lab-3/stage-prod.yaml (prod) or work/lab-3/stage-prod-regions.yaml (the regions)"
+    fi
+  done
+  if kargo_cli get projectconfig --project "$KARGO_PROJECT" -o yaml 2>/dev/null | tr -d ' "' | grep -q 'name:glob:prod-\*\|name:regex:prod-'; then
+    good "the regions promote by themselves: there is an auto-promotion policy for them"
+  else
+    bad "no auto-promotion policy for the regions" "apply yours: kargo apply -f work/lab-3/project-config.yaml"
+  fi
+  check_todos 3
+  if kargo_has freight '"tag": *"1\.2\.0"'; then
+    good "Freight with the image 1.2.0 exists"
+  else
+    bad "no Freight with the image 1.2.0 yet" "run: make release VERSION=1.2.0 and wait a minute"
+  fi
+  for stage in prod prod-amer-east prod-amer-west prod-emea; do
+    promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage "$stage" --no-headers 2>/dev/null | grep -c 'Succeeded' || true)"
+    if ((promotions >= 1)); then
+      good "a Promotion to '$stage' succeeded"
+    elif [[ "$stage" == prod ]]; then
+      bad "no Promotion to 'prod' has succeeded" "promote by hand once staging runs 1.2.0: kargo promote --project $KARGO_PROJECT --stage prod --warehouse app"
+    else
+      bad "no Promotion to '$stage' has succeeded" "it follows prod by itself: is the policy applied, and did the Promotion to prod finish?"
+    fi
+  done
+
+  section "Git and the applications"
+  for stage in staging prod-amer-east prod-amer-west prod-emea; do
+    tag="$(repo_tag "$stage")"
+    if [[ "$tag" == "1.2.0" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag 1.2.0"; else bad "Git: the $stage values file has tag '${tag:-?}', not 1.2.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
+    tag="$(stage_version "$stage")"
+    if [[ "$tag" == "1.2.0" ]]; then good "$stage runs 1.2.0 at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not 1.2.0" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
+  done
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
+  3) check_lab3 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3." ;;
 esac
 
 printf '\n'

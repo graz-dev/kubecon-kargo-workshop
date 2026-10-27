@@ -1,0 +1,55 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: @@KARGO_PROJECT@@
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: @@GITEA_REPO_URL@@
+        - name: image
+          value: @@CLUSTER_IMAGE_REPO@@
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        - uses: git-push
+          config:
+            path: ./repo

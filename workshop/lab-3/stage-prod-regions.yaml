@@ -1,0 +1,79 @@
+# The three regions of production. Each one sits after prod, takes the same Freight as prod, and syncs its own application.
+# Replace every TODO in the first Stage. The other two are the same pattern, written for you.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-east
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-east","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - TODO    # the Stage this region follows
+        autoPromotionOptions:
+          selectionPolicy: TODO    # follow what is in the Stage before: the same Freight, not the newest
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-east
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-west
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-west","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-west
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-emea
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-emea","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-emea
+                namespace: argocd
