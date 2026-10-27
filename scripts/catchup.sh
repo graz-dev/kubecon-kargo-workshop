@@ -48,13 +48,6 @@ promotion_succeeded() {
   out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage "$1" --no-headers 2>/dev/null || true)"
   grep -q 'Succeeded' <<<"$out"
 }
-# The name of the Freight with this image tag, once it is verified in the given Stage (empty until then)
-freight_verified_in() { # <stage> <tag>
-  kargo_cli get freight --project "$KARGO_PROJECT" \
-    -o jsonpath='{range .items[*]}{.metadata.name} {.images[0].tag} {.status.verifiedIn.'"$1"'.verifiedAt}{"\n"}{end}' 2>/dev/null |
-    awk -v tag="$2" '$2 == tag && NF >= 3 {print $1; exit}' || true
-}
-freight_is_verified() { [[ -n "$(freight_verified_in "$1" "$2")" ]]; }
 stage_runs() { [[ "$(stage_version "$1")" == "$2" ]]; } # stage_runs <stage> <version>
 
 # Renders steps/<N>/<file> with this machine's settings and applies it with the kargo CLI
@@ -132,12 +125,50 @@ catchup_3() {
   done
 }
 
+# True when the dev Stage reports a failed verification
+dev_verification_failed() {
+  local out
+  out="$(kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null || true)"
+  grep -q -E '^dev .*(assessed Failed|VerificationFailed)' <<<"$out"
+}
+
+catchup_4() {
+  step "Lab 4: verification, the failed 1.3.0, the rollback, the hold and the fix 1.3.1"
+  apply_step_file 4 analysis.yaml
+  apply_step_file 4 stage-dev.yaml
+  apply_step_file 4 stage-staging.yaml
+  if has_freight 1.3.0; then
+    ok "1.3.0 was released already"
+  else
+    "$LIB_DIR/../release.sh" 1.3.0
+    wait_for 120 "Freight with the image 1.3.0 was created" has_freight 1.3.0
+    wait_for 300 "dev took 1.3.0" stage_runs dev 1.3.0
+    wait_for 240 "the check of dev failed for 1.3.0" dev_verification_failed
+  fi
+  if stage_runs dev 1.3.0; then
+    # the rollback: promote the Freight that was there before
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage dev >/dev/null
+    ok "rollback of dev to 1.2.0 started"
+    wait_for 240 "dev runs 1.2.0 again" stage_runs dev 1.2.0
+  fi
+  "$LIB_DIR/../release.sh" 1.3.1
+  wait_for 120 "Freight with the image 1.3.1 was created" has_freight 1.3.1
+  if ! stage_runs dev 1.3.1; then
+    # the rollback put a hold on auto-promotion: promoting the current candidate lifts it
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    ok "promotion of 1.3.1 to dev started (it lifts the hold)"
+    wait_for 240 "dev runs 1.3.1" stage_runs dev 1.3.1
+  fi
+  wait_for 240 "1.3.1 is verified in dev" freight_is_verified dev 1.3.1
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
     1) catchup_1 ;;
     2) catchup_2 ;;
     3) catchup_3 ;;
+    4) catchup_4 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

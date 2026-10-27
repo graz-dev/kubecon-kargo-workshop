@@ -6,6 +6,7 @@
 #   scripts/check.sh 1            lab 1: the Warehouse, the Freight, the dev Stage, a successful promotion, Git and the app
 #   scripts/check.sh 2            lab 2: the staging Stage, auto-promotion on dev, release 1.1.0 on dev, staging promoted by hand
 #   scripts/check.sh 3            lab 3: the prod gate and the three regions, release 1.2.0 all the way to production
+#   scripts/check.sh 4            lab 4: verification on dev and staging, the failed 1.3.0, the rollback, the hold and the fix 1.3.1
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -265,13 +266,70 @@ check_lab3() {
   done
 }
 
+check_lab4() {
+  local tag stage_yaml
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  stage_yaml="$(kargo_cli get stage dev --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'name: smoke-test' <<<"$stage_yaml"; then
+    good "dev runs the smoke test after a promotion"
+  else
+    bad "dev has no verification" "apply yours: kargo apply -f work/lab-4/stage-dev.yaml"
+  fi
+  if kargo_cli get stage staging --project "$KARGO_PROJECT" -o yaml 2>/dev/null | grep -q 'name: e2e-test'; then
+    good "staging runs the end-to-end test after a promotion"
+  else
+    bad "staging has no verification" "apply: kargo apply -f work/lab-4/stage-staging.yaml"
+  fi
+  check_todos 4
+  if kargo_has freight '"tag": *"1\.3\.0"'; then
+    good "Freight with the image 1.3.0 exists"
+    if [[ -z "$(freight_verified_in dev 1.3.0)" ]]; then
+      good "1.3.0 was never verified in dev: its check failed"
+    else
+      bad "1.3.0 is verified in dev" "its check should fail. Did you replace the TODO of the smoke test with the text Kargo Guestbook?"
+    fi
+  else
+    bad "no Freight with the image 1.3.0" "run: make release VERSION=1.3.0"
+  fi
+  if grep -q 'phase: Failed' <<<"$stage_yaml"; then
+    good "dev has a failed verification in its history"
+  else
+    bad "dev has no failed verification in its history" "release 1.3.0 and let dev take it: make release VERSION=1.3.0"
+  fi
+  if [[ -n "$(freight_verified_in dev 1.3.1)" ]]; then
+    good "1.3.1 is verified in dev"
+  else
+    bad "1.3.1 is not verified in dev yet" "release it (make release VERSION=1.3.1), then resume: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app"
+  fi
+  if grep -q 'autoPromotionHolds' <<<"$stage_yaml"; then
+    bad "dev still has a hold on auto-promotion" "resume it by promoting the current candidate: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app"
+  else
+    good "dev has no hold: auto-promotion is back"
+  fi
+
+  section "Git and the applications"
+  tag="$(repo_tag dev)"
+  if [[ "$tag" == "1.3.1" ]]; then good "Git: env/dev/k8s/values.yaml has image tag 1.3.1"; else bad "Git: the dev values file has tag '${tag:-?}', not 1.3.1" "the last promotion has not finished or has failed: look at its steps in Kargo"; fi
+  tag="$(stage_version dev)"
+  if [[ "$tag" == "1.3.1" ]]; then good "dev runs 1.3.1 at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not 1.3.1" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
+  for stage in staging prod-emea; do
+    tag="$(repo_tag "$stage")"
+    if [[ "$tag" == "1.2.0" ]]; then good "$stage still runs 1.2.0: the bad release never got past dev"; else bad "$stage has '${tag:-?}', not 1.2.0" "in this lab only dev should change"; fi
+  done
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
   3) check_lab3 ;;
+  4) check_lab4 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4." ;;
 esac
 
 printf '\n'

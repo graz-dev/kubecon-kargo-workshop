@@ -1,0 +1,65 @@
+# The staging Stage again, now with a check after every promotion. Nothing to fill in.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-staging","namespace":"argocd"}]'
+spec:
+  # Where this Stage gets Freight from: from another Stage, not straight from the Warehouse
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag of staging in its values file
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # 3. Commit the change
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        # 4. Push it
+        - uses: git-push
+          config:
+            path: ./repo
+        # 5. Tell Argo CD to sync the staging application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-staging
+                namespace: argocd
+  # What to check after a promotion. Freight only counts as verified in this Stage if the check passes.
+  verification:
+    analysisTemplates:
+      - name: e2e-test
+    args:
+      - name: stage
+        value: staging

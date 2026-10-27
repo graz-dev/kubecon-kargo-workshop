@@ -9,6 +9,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [Lab 1 - Your first promotion](lab-1/README.md) | after the setup | Send the first release to `dev` |
 | [Lab 2 - Build the pipeline](lab-2/README.md) | after Lab 1 | Add `staging`, let `dev` promote by itself |
 | [Lab 3 - Production in three regions](lab-3/README.md) | after Lab 2 | Add the `prod` gate and three regions that follow it |
+| [Lab 4 - Verification and rollback](lab-4/README.md) | after Lab 3 | Check every release, catch a broken one, go back |
 
 The other labs follow.
 

@@ -377,6 +377,16 @@ render_warehouse() {
   render_template "$ROOT_DIR/steps/warehouse.yaml"
 }
 
+# --- Freight (needs a logged-in kargo CLI) -------------------------------------
+
+# The name of the Freight with this image tag, once it is verified in the given Stage (empty until then)
+freight_verified_in() { # <stage> <tag>
+  kargo_cli get freight --project "$KARGO_PROJECT" \
+    -o jsonpath='{range .items[*]}{.metadata.name} {.images[0].tag} {.status.verifiedIn.'"$1"'.verifiedAt}{"\n"}{end}' 2>/dev/null |
+    awk -v tag="$2" '$2 == tag && NF >= 3 {print $1; exit}' || true
+}
+freight_is_verified() { [[ -n "$(freight_verified_in "$1" "$2")" ]]; }
+
 # --- Small utilities -----------------------------------------------------------
 
 have() { command -v "$1" >/dev/null 2>&1; }

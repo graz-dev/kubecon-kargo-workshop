@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check prefetch lint
+.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight prefetch lint
 
 # stub <target> <planned phase>
 define stub
@@ -60,6 +60,9 @@ catchup: ## Do a lab, and the ones before it, for you when you are behind: make 
 check: ## Verify a step: make check STEP=setup, or a lab number: make check STEP=1
 	$(if $(STEP),,$(error STEP is required, e.g. make check STEP=setup))
 	@scripts/check.sh $(STEP)
+
+freight: ## List the Freight with its version and where it is now (to find the alias of a version)
+	@scripts/freight.sh
 
 prefetch: ## Pull every image the workshop needs, so a later make up needs little or no network
 	@scripts/prefetch.sh
