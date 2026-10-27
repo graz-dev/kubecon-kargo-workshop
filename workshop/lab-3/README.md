@@ -59,7 +59,7 @@ In the Kargo UI, `prod` appears after `staging`.
 
 ## 2. Add the three regions
 
-Open `work/lab-3/stage-prod-regions.yaml`. It has three Stages. Replace the two `TODO`s in the first one, the other two are done for
+Open `work/lab-3/stage-prod-regions.yaml`. It has three Stages. Replace the two `TODO`s in the first one; the other two are done for
 you. Then apply it:
 
 ```sh

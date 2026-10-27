@@ -8,6 +8,7 @@
 #   scripts/check.sh 3            lab 3: the prod gate and the three regions, release 1.2.0 all the way to production
 #   scripts/check.sh 4            lab 4: verification on dev and staging, the failed 1.3.0, the rollback, the hold and the fix 1.3.1
 #   scripts/check.sh 5            lab 5: staging waits for a pull request in Gitea, 1.3.1 reaches staging when it is merged
+#   scripts/check.sh 6            lab 6: the Warehouse follows the registry, the live release goes through every Stage
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -370,15 +371,66 @@ check_lab5() {
   if [[ "$tag" == "1.2.0" ]]; then good "production still runs 1.2.0: nothing moved past staging"; else bad "production has '${tag:-?}', not 1.2.0" "in this lab only staging should change"; fi
 }
 
+check_lab6() {
+  local version stage pulls tag
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get warehouse app --project "$KARGO_PROJECT" -o yaml 2>/dev/null | grep -q 'imageSelectionStrategy: NewestBuild'; then
+    good "the Warehouse follows the registry: it picks the image built most recently"
+  else
+    bad "the Warehouse does not use NewestBuild" "apply yours: kargo apply -f work/lab-6/warehouse.yaml"
+  fi
+  check_todos 6
+  version="$(newest_freight_tag)"
+  if [[ -n "$version" && "$version" != 1.3.1 && "$(printf '%s\n%s\n' 1.3.1 "$version" | sort -V | tail -1)" == "$version" ]]; then
+    good "Kargo found a release newer than 1.3.1: $version"
+  else
+    bad "Kargo has found nothing newer than 1.3.1 yet" "wait for the instructor to publish the new version, then ask the Warehouse to look: kargo refresh warehouse app --project $KARGO_PROJECT"
+    return 0
+  fi
+  for stage in dev staging prod prod-amer-east prod-amer-west prod-emea; do
+    if [[ -n "$(freight_verified_in "$stage" "$version")" ]]; then
+      good "$version went through $stage"
+    else
+      bad "$version has not been through $stage" "promote it, one Stage after the other: dev (by itself), staging (merge the pull request), prod, then the regions follow"
+    fi
+  done
+
+  section "Gitea"
+  pulls="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/pulls?state=all&limit=50" 2>/dev/null | tr -d ' \n' || true)"
+  if grep -q "Promoteguestbook${version}tostaging" <<<"$pulls"; then
+    good "Kargo opened a pull request for $version"
+  else
+    bad "no pull request for $version" "promote it to staging: kargo promote --project $KARGO_PROJECT --stage staging --warehouse app"
+  fi
+  if grep -q '"state":"open"' <<<"$pulls"; then
+    bad "a pull request is still open" "review it and merge it: the Promotion is waiting for it"
+  else
+    good "no pull request is waiting"
+  fi
+
+  section "Git and the applications"
+  for stage in dev staging prod-amer-east prod-amer-west prod-emea; do
+    tag="$(repo_tag "$stage")"
+    if [[ "$tag" == "$version" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag $version"; else bad "Git: the $stage values file has tag '${tag:-?}', not $version" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
+    tag="$(stage_version "$stage")"
+    if [[ "$tag" == "$version" ]]; then good "$stage runs $version at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not $version" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
+  done
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
   3) check_lab3 ;;
   4) check_lab4 ;;
   5) check_lab5 ;;
+  6) check_lab6 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6." ;;
 esac
 
 printf '\n'

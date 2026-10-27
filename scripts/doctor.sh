@@ -319,13 +319,13 @@ check_images() {
     row "$level" "image catalog" "cannot list tags of $repo anonymously (not published yet, package private, or no network)"
     return 0
   fi
-  for v in $CATALOG_VERSIONS; do
+  for v in $(prepublished_versions); do
     printf '%s\n' "$tags" | grep -qx "$v" || missing="$missing $v"
   done
   if [[ -n "$missing" ]]; then
     row "$level" "image catalog" "tags missing from $repo:$missing"
   else
-    row OK "image catalog" "all of: $CATALOG_VERSIONS"
+    row OK "image catalog" "all of: $(prepublished_versions) (${LIVE_VERSIONS:-none} is published live in Lab 6)"
   fi
   if manifest="$(DOCKER_CONFIG="$cfg" crane manifest "$repo:$INITIAL_VERSION" 2>/dev/null)"; then
     if printf '%s' "$manifest" | grep -Eq '"architecture": *"amd64"' &&

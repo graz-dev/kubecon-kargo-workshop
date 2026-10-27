@@ -94,7 +94,7 @@ A promotion policy picks Stages by name and says whether Kargo promotes new Frei
 
 Kargo confirms the ProjectConfig. Nothing else happens yet: `dev` already has the newest Freight, so there is nothing new to promote.
 
-You can see that your changes were effective from the UI because now the `dev` stage has a thunder icon: 
+In the Kargo UI, you can tell that the policy is on: the `dev` Stage now has a lightning bolt icon.
 
 ![](/assets/lab-2-auto-promotion.png)
 
@@ -128,7 +128,7 @@ Two pieces of Freight now, and two Promotions on `dev`. The newer Promotion was 
 
 ![](/assets/lab-2-new-freight-and-new-promotion.png)
 
-Open `http://guestbook-dev.localtest.me`: the banner says **v1.1.0**. 
+Open `http://guestbook-dev.localtest.me`: the banner says **v1.1.0**.
 
 ![](/assets/lab-2-dev-autopromotion.png)
 

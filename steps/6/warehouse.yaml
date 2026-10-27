@@ -1,0 +1,21 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: app
+  namespace: @@KARGO_PROJECT@@
+spec:
+  subscriptions:
+    - image:
+        repoURL: @@CLUSTER_IMAGE_REPO@@
+        imageSelectionStrategy: NewestBuild
+        allowTagsRegexes:
+          - '^[0-9]+\.[0-9]+\.[0-9]+$'
+        cacheByTag: true
+        discoveryLimit: 10
+    - git:
+        repoURL: @@GITEA_REPO_URL@@
+        branch: @@GITEA_BRANCH@@
+        includePaths:
+          - glob:charts/**
+        excludePaths:
+          - glob:env/**

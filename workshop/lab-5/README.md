@@ -88,7 +88,7 @@ After a few seconds, the Promotion is **Running**, and it stays Running. It is n
 
 ![](/assets/lab-5-promotion-waiting.png)
 
-In the Kargo UI you can see also the PR waiting to be approved: 
+In the Kargo UI, you can also see the PR waiting for approval:
 
 ![](/assets/lab-5-promotion-waiting-2.png)
 

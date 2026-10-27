@@ -48,6 +48,10 @@ if [[ "$DRY_RUN" == 1 ]]; then
   sed 's/^/      | /' "$WORK/warehouse.yaml"
 else
   kargo_login
+  # After Lab 6 the Warehouse finds releases by itself: moving a ceiling would put the fence back
+  if [[ "$(kargo_cli get warehouse app --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)" == *NewestBuild* ]]; then
+    die "The Warehouse 'app' follows the registry by itself (NewestBuild), so there is no release to announce. Publish a new image instead."
+  fi
   kargo_cli apply -f "$WORK/warehouse.yaml" >/dev/null
   ok "the Warehouse 'app' selects up to $VERSION: new Freight appears in a moment"
 fi

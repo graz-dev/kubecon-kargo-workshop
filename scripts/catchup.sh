@@ -168,26 +168,63 @@ open_pull_request() {
 }
 has_open_pull_request() { [[ -n "$(open_pull_request)" ]]; }
 
-catchup_5() {
-  step "Lab 5: staging waits for a pull request, which is merged"
-  apply_step_file 5 stage-staging.yaml
-  if [[ "$(repo_tag staging)" == "1.3.1" ]]; then
-    ok "staging already has 1.3.1: nothing to promote"
+# Promotes a version to staging, merges the pull request Kargo opens (the attendee does it in the Gitea page, here it is the
+# API with the same user) and waits for the end-to-end test
+staging_through_pr() { # <version>
+  local version="$1" number
+  if [[ "$(repo_tag staging)" == "$version" ]]; then
+    ok "staging already has $version: nothing to promote"
   else
     if ! has_open_pull_request; then
-      kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.3.1)" --stage staging >/dev/null
+      kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev "$version")" --stage staging >/dev/null
       ok "promotion to staging started"
       wait_for 120 "Kargo opened a pull request in Gitea" has_open_pull_request
     fi
-    # the attendee does this in the Gitea page: here it is the API, with the same user
-    local number
     number="$(open_pull_request)"
     gitea_curl -u "$GITEA_USER:$GITEA_PASSWORD" -H 'Content-Type: application/json' -X POST -o /dev/null \
       -d '{"Do":"merge"}' "$(gitea_url)/api/v1/repos/$GITEA_ORG/$GITEA_REPO/pulls/$number/merge"
     ok "pull request $number merged"
   fi
-  wait_for 240 "staging runs 1.3.1" stage_runs staging 1.3.1
-  wait_for 240 "1.3.1 is verified in staging" freight_is_verified staging 1.3.1
+  wait_for 240 "staging runs $version" stage_runs staging "$version"
+  wait_for 240 "$version is verified in staging" freight_is_verified staging "$version"
+}
+
+catchup_5() {
+  step "Lab 5: staging waits for a pull request, which is merged"
+  apply_step_file 5 stage-staging.yaml
+  staging_through_pr 1.3.1
+}
+
+# Asks the Warehouse to look at the registry now, then says whether the version has become Freight
+refresh_and_has_freight() {
+  kargo_cli refresh warehouse --project "$KARGO_PROJECT" app >/dev/null 2>&1 || true
+  has_freight "$1"
+}
+
+catchup_6() {
+  step "Lab 6: the Warehouse follows the registry, the live release goes all the way to production"
+  local version="${LIVE_VERSION:-${LIVE_VERSIONS%% *}}" cfg region
+  [[ -n "$version" ]] || die "No live version is set (LIVE_VERSIONS in workshop.env)."
+  cfg="$(mktemp -d)"
+  if ! DOCKER_CONFIG="$cfg" "$TOOLS_BIN/crane" manifest "$(image_repo_cluster):$version" >/dev/null 2>&1; then
+    rm -rf "$cfg"
+    die "Version $version is not on the registry yet. The instructor publishes it during the lab: wait for the signal, then run this again."
+  fi
+  rm -rf "$cfg"
+  apply_step_file 6 warehouse.yaml
+  wait_for 240 "Freight with the image $version was created" refresh_and_has_freight "$version"
+  wait_for 300 "dev runs $version (promoted by Kargo)" stage_runs dev "$version"
+  wait_for 240 "$version is verified in dev" freight_is_verified dev "$version"
+  staging_through_pr "$version"
+  if [[ "$(repo_tag prod-emea)" == "$version" ]]; then
+    ok "production already has $version: nothing to promote"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging "$version")" --stage prod >/dev/null
+    ok "promotion to prod started"
+  fi
+  for region in prod-amer-east prod-amer-west prod-emea; do
+    wait_for 300 "$region runs $version" stage_runs "$region" "$version"
+  done
 }
 
 kargo_login
@@ -198,6 +235,7 @@ for n in $(seq 1 "$TARGET"); do
     3) catchup_3 ;;
     4) catchup_4 ;;
     5) catchup_5 ;;
+    6) catchup_6 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

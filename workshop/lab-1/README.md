@@ -87,7 +87,6 @@ In the Kargo UI, open the project `guestbook`. After a few seconds, a Warehouse 
 ![](/assets/lab-1-first-warehouse.png)
 </details>
 
-
 ## 2. Look at what was found
 
 Run:
@@ -222,7 +221,8 @@ Now see the result with your own eyes:
 
 ![](/assets/lab-1-argo-ui.png)
 
-- **The application:** open `http://guestbook-dev.localtest.me`. The banner is now blue and says **v1.0.0**. Open `http://guestbook-staging.localtest.me`: it still says v0.9.0.
+- **The application:** open `http://guestbook-dev.localtest.me`. The banner is now blue and says **v1.0.0**. Open
+  `http://guestbook-staging.localtest.me`: it still says v0.9.0.
 
 ![](/assets/lab-1-result.png)
 

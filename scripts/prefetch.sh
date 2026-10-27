@@ -21,7 +21,7 @@ images() {
     grep -v -E '^\s*(#|$)' "$ROOT_DIR/manifests/prefetch-images.txt"
     printf '%s\n' "$CURL_IMAGE" "$SELFTEST_IMAGE"
     local v
-    for v in $CATALOG_VERSIONS; do printf '%s:%s\n' "$(image_repo_cluster)" "$v"; done
+    for v in $(prepublished_versions); do printf '%s:%s\n' "$(image_repo_cluster)" "$v"; done
     # what the last `make up` used, minus Kubernetes' own images: those are already inside the kind node image
     if [[ -f "$TOOLS_DIR/images-seen.txt" ]]; then grep -v -E '^(registry\.k8s\.io/|docker\.io/kindest/)' "$TOOLS_DIR/images-seen.txt" || true; fi
   } | sort -u

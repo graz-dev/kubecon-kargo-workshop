@@ -53,7 +53,7 @@ looks for.
 <details>
 <summary>What you should see</summary>
 
-Kargo confirms two `analysistemplate`s as created.
+Kargo confirms that the two AnalysisTemplates were created.
 </details>
 
 ## 2. Turn them on
@@ -91,11 +91,11 @@ export KUBECONFIG=$PWD/.tools/kubeconfig
 kubectl -n akuity get pods | grep smoke
 ```
 
-On the Kargo UI you should see a new `Verification`in the `dev` Stage with an `AnalkisysRun`:
+In the Kargo UI, you should see a new verification on the `dev` Stage, with an `AnalysisRun`:
 
 ![](/assets/lab-4-first-manual-verification.png)
 
-If you open the `AnalkisysRun` you should see the checks done: 
+If you open the `AnalysisRun`, you can see the checks that ran:
 
 ![](/assets/lab-4-check-1.png)
 ![](/assets/lab-4-check-2.png)
@@ -137,7 +137,7 @@ kubectl -n akuity get pods | grep smoke
 kubectl -n akuity logs <the newest smoke-test pod>
 ```
 
-You can also check the Kargo UI to check the promotion status and verfication logs: 
+You can also open the Kargo UI to see the status of the Promotion and the logs of the verification:
 
 ![](/assets/lab-4-verification-failure.png)
 ![](/assets/lab-4-verification-failure-2.png)
@@ -183,7 +183,7 @@ It is a normal promotion, of Freight the Stage already knew. **Rollback is just 
 A few seconds later `dev` is ready again and says **Freight has been verified**. Open `http://guestbook-dev.localtest.me`: the banner says
 **v1.2.0**.
 
-In the Kargo UI you should see the older version deployed on `dev` with an alert "Auto-promotion paused":
+In the Kargo UI, you should see the older version on `dev`, with the alert "Auto-promotion paused":
 
 ![](/assets/lab-4-rollback.png)
 ![](/assets/lab-4-rollback-2.png)
@@ -223,7 +223,7 @@ kargo promote --project guestbook --stage dev --warehouse app
 kargo get stages --project guestbook
 ```
 
-You can also do that from the Resume button in the UI.
+You can also do this with the **Resume** button in the UI.
 
 <details>
 <summary>What it does</summary>

@@ -365,6 +365,15 @@ kargo_login() {
 RELEASE_FILE="$TOOLS_DIR/release"
 FIRST_RELEASE=1.0.0 # the first version the Warehouse may select
 
+# The catalog versions that are on the registry before the workshop: LIVE_VERSIONS are published by hand during Lab 6
+prepublished_versions() {
+  local v out=""
+  for v in $CATALOG_VERSIONS; do
+    case " ${LIVE_VERSIONS:-} " in *" $v "*) ;; *) out="$out $v" ;; esac
+  done
+  printf '%s' "${out# }"
+}
+
 release_ceiling() { if [[ -f "$RELEASE_FILE" ]]; then cat "$RELEASE_FILE"; else printf '%s' "$FIRST_RELEASE"; fi; }
 
 # Renders steps/warehouse.yaml for a ceiling (default: the current one) to stdout
@@ -386,6 +395,11 @@ freight_verified_in() { # <stage> <tag>
     awk -v tag="$2" '$2 == tag && NF >= 3 {print $1; exit}' || true
 }
 freight_is_verified() { [[ -n "$(freight_verified_in "$1" "$2")" ]]; }
+
+# The newest image tag among the Freight of the project (empty when there is none)
+newest_freight_tag() {
+  kargo_cli get freight --project "$KARGO_PROJECT" -o jsonpath='{range .items[*]}{.images[0].tag}{"\n"}{end}' 2>/dev/null | sort -V | tail -1 || true
+}
 
 # --- Small utilities -----------------------------------------------------------
 

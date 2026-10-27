@@ -1,0 +1,27 @@
+# The Warehouse of the guestbook, without the fence: it follows the registry by itself.
+# Replace the TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: app
+  namespace: guestbook
+spec:
+  subscriptions:
+    - image:
+        repoURL: ghcr.io/graz-dev/kargo-workshop-guestbook
+        imageSelectionStrategy: TODO    # how to choose: the image that was built most recently
+        # Only tags that look like a version
+        allowTagsRegexes:
+          - '^[0-9]+\.[0-9]+\.[0-9]+$'
+        # Our tags never change, so Kargo can remember what it already read
+        cacheByTag: true
+        discoveryLimit: 10
+    # The chart travels with the image. env/ is left out: promotions write there.
+    - git:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        repoURL: http://gitea.localtest.me/workshop/guestbook-gitops
+        branch: main
+        includePaths:
+          - glob:charts/**
+        excludePaths:
+          - glob:env/**
