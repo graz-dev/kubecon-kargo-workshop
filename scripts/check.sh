@@ -7,6 +7,7 @@
 #   scripts/check.sh 2            lab 2: the staging Stage, auto-promotion on dev, release 1.1.0 on dev, staging promoted by hand
 #   scripts/check.sh 3            lab 3: the prod gate and the three regions, release 1.2.0 all the way to production
 #   scripts/check.sh 4            lab 4: verification on dev and staging, the failed 1.3.0, the rollback, the hold and the fix 1.3.1
+#   scripts/check.sh 5            lab 5: staging waits for a pull request in Gitea, 1.3.1 reaches staging when it is merged
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -322,14 +323,62 @@ check_lab4() {
   done
 }
 
+check_lab5() {
+  local tag stage_yaml pulls
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  stage_yaml="$(kargo_cli get stage staging --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'git-open-pr' <<<"$stage_yaml" && grep -q 'git-wait-for-pr' <<<"$stage_yaml"; then
+    good "staging opens a pull request and waits for it"
+  else
+    bad "staging has no pull request gate" "apply yours: kargo apply -f work/lab-5/stage-staging.yaml"
+  fi
+  check_todos 5
+  if [[ -n "$(freight_verified_in staging 1.3.1)" ]]; then
+    good "1.3.1 is verified in staging: the end-to-end test passed"
+  else
+    bad "1.3.1 is not verified in staging yet" "promote it (kargo promote --project $KARGO_PROJECT --stage staging --warehouse app) and merge the pull request in Gitea"
+  fi
+
+  section "Gitea"
+  pulls="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/pulls?state=all&limit=50" 2>/dev/null | tr -d ' \n' || true)"
+  if grep -q '"merged":true' <<<"$pulls"; then
+    good "a pull request was merged"
+  else
+    bad "no pull request has been merged" "open $(service_url gitea)/$GITEA_ORG/$GITEA_REPO/pulls, review the pull request of Kargo and merge it"
+  fi
+  if grep -q '"login":"kargo-bot"' <<<"$pulls"; then
+    good "the pull request was opened by kargo-bot"
+  else
+    bad "no pull request from kargo-bot" "promote to staging after applying your Stage: kargo promote --project $KARGO_PROJECT --stage staging --warehouse app"
+  fi
+  if grep -q '"state":"open"' <<<"$pulls"; then
+    bad "a pull request is still open" "review it and merge it, or close it: the Promotion is waiting for it"
+  else
+    good "no pull request is waiting"
+  fi
+
+  section "Git and the applications"
+  tag="$(repo_tag staging)"
+  if [[ "$tag" == "1.3.1" ]]; then good "Git: env/staging/k8s/values.yaml has image tag 1.3.1"; else bad "Git: the staging values file has tag '${tag:-?}', not 1.3.1" "the pull request is not merged yet, or the promotion failed: look at it in Kargo"; fi
+  tag="$(stage_version staging)"
+  if [[ "$tag" == "1.3.1" ]]; then good "staging runs 1.3.1 at $(service_url guestbook-staging)"; else bad "staging runs '${tag:-nothing}', not 1.3.1" "give Argo CD a minute, or check that the application guestbook-staging is Synced"; fi
+  tag="$(repo_tag prod-emea)"
+  if [[ "$tag" == "1.2.0" ]]; then good "production still runs 1.2.0: nothing moved past staging"; else bad "production has '${tag:-?}', not 1.2.0" "in this lab only staging should change"; fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
   3) check_lab3 ;;
   4) check_lab4 ;;
+  5) check_lab5 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5." ;;
 esac
 
 printf '\n'

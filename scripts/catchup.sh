@@ -162,6 +162,34 @@ catchup_4() {
   wait_for 240 "1.3.1 is verified in dev" freight_is_verified dev 1.3.1
 }
 
+# The number of the first open pull request of the GitOps repository (empty when there is none)
+open_pull_request() {
+  gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/pulls?state=open" 2>/dev/null | sed -n 's/.*"number": *\([0-9][0-9]*\).*/\1/p' | head -1 || true
+}
+has_open_pull_request() { [[ -n "$(open_pull_request)" ]]; }
+
+catchup_5() {
+  step "Lab 5: staging waits for a pull request, which is merged"
+  apply_step_file 5 stage-staging.yaml
+  if [[ "$(repo_tag staging)" == "1.3.1" ]]; then
+    ok "staging already has 1.3.1: nothing to promote"
+  else
+    if ! has_open_pull_request; then
+      kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.3.1)" --stage staging >/dev/null
+      ok "promotion to staging started"
+      wait_for 120 "Kargo opened a pull request in Gitea" has_open_pull_request
+    fi
+    # the attendee does this in the Gitea page: here it is the API, with the same user
+    local number
+    number="$(open_pull_request)"
+    gitea_curl -u "$GITEA_USER:$GITEA_PASSWORD" -H 'Content-Type: application/json' -X POST -o /dev/null \
+      -d '{"Do":"merge"}' "$(gitea_url)/api/v1/repos/$GITEA_ORG/$GITEA_REPO/pulls/$number/merge"
+    ok "pull request $number merged"
+  fi
+  wait_for 240 "staging runs 1.3.1" stage_runs staging 1.3.1
+  wait_for 240 "1.3.1 is verified in staging" freight_is_verified staging 1.3.1
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
@@ -169,6 +197,7 @@ for n in $(seq 1 "$TARGET"); do
     2) catchup_2 ;;
     3) catchup_3 ;;
     4) catchup_4 ;;
+    5) catchup_5 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

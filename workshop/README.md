@@ -10,6 +10,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [Lab 2 - Build the pipeline](lab-2/README.md) | after Lab 1 | Add `staging`, let `dev` promote by itself |
 | [Lab 3 - Production in three regions](lab-3/README.md) | after Lab 2 | Add the `prod` gate and three regions that follow it |
 | [Lab 4 - Verification and rollback](lab-4/README.md) | after Lab 3 | Check every release, catch a broken one, go back |
+| [Lab 5 - A pull request as approval](lab-5/README.md) | after Lab 4 | `staging` waits until someone merges a pull request |
 
 The other labs follow.
 
@@ -21,6 +22,8 @@ Every step starts with **what to do**. Two folded boxes follow:
 - **What you should see** tells you how to know it worked.
 
 Try the step first, then open the boxes.
+
+Run `make check` right after its lab: a later lab changes things, and an earlier check may then report a difference.
 
 ## If something goes wrong
 

@@ -1,0 +1,80 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-staging","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: @@GITEA_REPO_URL@@
+        - name: image
+          value: @@CLUSTER_IMAGE_REPO@@
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        - uses: git-push
+          as: push
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            path: ./repo
+            generateTargetBranch: true
+        - uses: git-open-pr
+          as: open-pr
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            sourceBranch: ${{ outputs['push'].branch }}
+            targetBranch: main
+            title: "Promote guestbook ${{ imageFrom(vars.image).Tag }} to staging"
+            description: |
+              Kargo staging promotion for guestbook ${{ imageFrom(vars.image).Tag }}.
+              Merging this PR approves the promotion to staging.
+        - uses: git-wait-for-pr
+          as: wait-for-pr
+          if: ${{ status('open-pr') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            prNumber: ${{ outputs['open-pr'].pr.id }}
+            pollInterval: 10s
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-staging
+                namespace: argocd
+  verification:
+    analysisTemplates:
+      - name: e2e-test
+    args:
+      - name: stage
+        value: staging

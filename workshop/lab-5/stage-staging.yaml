@@ -1,0 +1,91 @@
+# The staging Stage again, now with a pull request as approval. Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-staging","namespace":"argocd"}]'
+spec:
+  # Where this Stage gets Freight from: from another Stage, not straight from the Warehouse
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag of staging in its values file
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # 3. Commit the change
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        # 4. Push it to a new branch, not to main. Kargo makes up the name of the branch.
+        - uses: git-push
+          as: push
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            path: ./repo
+            generateTargetBranch: TODO    # true or false: let Kargo generate the branch
+        # 5. Open a pull request from that branch into main
+        - uses: git-open-pr
+          as: open-pr
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            sourceBranch: TODO    # the branch the push step just made: the output named branch of the step called push
+            targetBranch: main
+            title: "Promote guestbook ${{ imageFrom(vars.image).Tag }} to staging"
+            description: |
+              Kargo staging promotion for guestbook ${{ imageFrom(vars.image).Tag }}.
+              Merging this PR approves the promotion to staging.
+        # 6. Wait until somebody merges it. This is the approval.
+        - uses: git-wait-for-pr
+          as: wait-for-pr
+          if: ${{ status('open-pr') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            prNumber: TODO    # the number of the pull request: the output pr.id of the step called open-pr
+            pollInterval: 10s
+        # 7. Tell Argo CD to sync the staging application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-staging
+                namespace: argocd
+  # What to check after a promotion. Freight only counts as verified in this Stage if the check passes.
+  verification:
+    analysisTemplates:
+      - name: e2e-test
+    args:
+      - name: stage
+        value: staging
