@@ -12,6 +12,7 @@
 #   scripts/check.sh 7            lab 7: the inbox received a message for a promotion that succeeded and one that failed
 #   scripts/check.sh 8            lab 8: dev rolled itself back to the stable Freight when the check of 1.3.0 failed
 #   scripts/check.sh 9            lab 9: a freeze window on prod, and a promotion to prod that asked for a reason, an approval and an audit event
+#   scripts/check.sh 10           lab 10: the Promotion Controller is on, and a promotion of dev ran two custom steps, a greeting and a scan
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -534,6 +535,38 @@ check_lab9() {
   fi
 }
 
+check_lab10() {
+  local stage_yaml promotions
+  section "Kargo"
+  if kubectl -n akuity get deploy "kargo-promotion-controller-$CLUSTER_NAME" >/dev/null 2>&1; then
+    good "the Promotion Controller is on"
+  else
+    bad "the Promotion Controller is off" "turn it on: make promotion-controller STATE=on"
+  fi
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  stage_yaml="$(kargo_cli get stage dev --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'uses: hello-world' <<<"$stage_yaml" && grep -q 'uses: trivy-image' <<<"$stage_yaml"; then
+    good "dev uses the two custom steps"
+  else
+    bad "dev does not use hello-world and trivy-image" "apply yours: kargo apply -f work/lab-10/stage-dev.yaml"
+  fi
+  check_todos 10
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev -o yaml 2>/dev/null || true)"
+  if grep -q 'message: Hello from the dev promotion!' <<<"$promotions"; then
+    good "a promotion of dev ran hello-world"
+  else
+    bad "no promotion of dev has run hello-world" "register the steps and apply the Stage, then promote: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app"
+  fi
+  if grep -q 'Report Summary' <<<"$promotions"; then
+    good "a promotion of dev ran the Trivy scan and kept its report"
+  else
+    bad "no scan report in the promotions of dev" "the scan takes about a minute: wait for the Promotion to finish"
+  fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -544,9 +577,10 @@ case "$STEP" in
   7) check_lab7 ;;
   8) check_lab8 ;;
   9) check_lab9 ;;
+  10) check_lab10 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10." ;;
 esac
 
 printf '\n'

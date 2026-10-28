@@ -1,0 +1,75 @@
+# The dev Stage again, now with two custom steps at the start of its promotion. Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-dev","namespace":"argocd"}]'
+spec:
+  # Where this Stage gets Freight from: straight from the Warehouse
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        direct: true
+  # What a promotion to this Stage does, step by step
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 0. A custom step: the smallest one, it says hello
+        - uses: hello-world
+          as: hello
+          config:
+            message: "Hello from the ${{ ctx.stage }} promotion!"
+        # 0. A custom step: scan the image that is about to be promoted, before anything is written to Git
+        - uses: TODO    # the name of the step that scans an image
+          as: scan
+          config:
+            image: TODO    # the image and its tag: the image of the vars, a colon, and the tag of the Freight
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag of dev in its values file
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # 3. Commit the change
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        # 4. Push it
+        - uses: git-push
+          config:
+            path: ./repo
+        # 5. Tell Argo CD to sync the dev application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-dev
+                namespace: argocd
+  # What to check after a promotion. Freight only counts as verified in this Stage if the check passes.
+  verification:
+    analysisTemplates:
+      - name: smoke-test
+    args:
+      - name: stage
+        value: dev

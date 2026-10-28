@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit prefetch lint
+.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit promotion-controller prefetch lint
 
 # stub <target> <planned phase>
 define stub
@@ -60,6 +60,10 @@ catchup: ## Do a lab, and the ones before it, for you when you are behind: make 
 check: ## Verify a step: make check STEP=setup, or a lab number: make check STEP=1
 	$(if $(STEP),,$(error STEP is required, e.g. make check STEP=setup))
 	@scripts/check.sh $(STEP)
+
+promotion-controller: ## Turn the Promotion Controller of your Kargo instance on or off (Lab 10): make promotion-controller STATE=on|off
+	$(if $(STATE),,$(error STATE is required: on, off or status))
+	@scripts/promotion-controller.sh $(STATE)
 
 audit: ## List the audit events of the project: who approved what, and why
 	@scripts/audit.sh

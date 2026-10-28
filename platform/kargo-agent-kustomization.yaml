@@ -13,3 +13,14 @@ patches:
         name: kargo-controller-@@AGENT@@
       data:
         ALLOW_CREDENTIALS_OVER_HTTP: "true"
+  # The same for the pods that run promotions, which exist when the Promotion Controller is on (Lab 10)
+  - target:
+      kind: ConfigMap
+      name: kargo-promotion-controller-@@AGENT@@
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kargo-promotion-controller-@@AGENT@@
+      data:
+        ALLOW_CREDENTIALS_OVER_HTTP: "true"

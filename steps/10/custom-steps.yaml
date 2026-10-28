@@ -1,0 +1,38 @@
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: hello-world
+spec:
+  image: @@BUSYBOX_IMAGE@@
+  command:
+    - sh
+    - -c
+    - |
+      MSG="${{ config.message }}"
+      echo "$MSG"
+      printf 'message=%s' "$MSG" > "$KARGO_OUTPUT"
+---
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: trivy-image
+spec:
+  image: @@TRIVY_IMAGE@@
+  env:
+    - name: HOME
+      value: /tmp
+    - name: TRIVY_CACHE_DIR
+      value: /tmp/.trivycache
+  command:
+    - trivy
+    - image
+    - --severity=HIGH,CRITICAL
+    - --no-progress
+    - --exit-code=0
+    - ${{ config.image }}
+  output:
+    source:
+      type: Stdout
+    format: Text
+    transform:
+      log: output

@@ -1,0 +1,43 @@
+# Custom promotion steps: any container can become a step of a promotion. They are registered once for the whole Kargo instance.
+# Replace the TODO. Everything else is ready.
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: hello-world
+spec:
+  image: busybox:1.37.0
+  command:
+    - sh
+    - -c
+    - |
+      MSG="${{ config.message }}"
+      echo "$MSG"
+      printf 'message=%s' "$MSG" > "$KARGO_OUTPUT"
+---
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: trivy-image
+spec:
+  image: aquasec/trivy:0.71.0
+  # The step runs as a user without a home directory: Trivy keeps its files in /tmp
+  env:
+    - name: HOME
+      value: /tmp
+    - name: TRIVY_CACHE_DIR
+      value: /tmp/.trivycache
+  command:
+    - trivy
+    - image
+    - --severity=HIGH,CRITICAL
+    - --no-progress
+    # Only report. With 1 the step fails when it finds something, and the promotion stops
+    - --exit-code=0
+    - TODO    # the image to scan: it comes from the config of the step, between ${{ and }}
+  # What the step gives back. The key "log" shows the report in the Logs tab of the Kargo UI
+  output:
+    source:
+      type: Stdout
+    format: Text
+    transform:
+      log: output

@@ -35,7 +35,7 @@ cluster_exists || die "Cluster '$CLUSTER_NAME' does not exist. Run: make up"
 printf 'Reset will:\n'
 printf '  - delete and recreate %s/%s in Gitea (every stage back to %s, pull requests gone)\n' "$GITEA_ORG" "$GITEA_REPO" "$INITIAL_VERSION"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
-  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance, and all the Freight\n'
+  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance, all the Freight, and turn the Promotion Controller off\n'
 fi
 printf '  - set the release ceiling back to %s\n' "$FIRST_RELEASE"
 if [[ "$CONFIRM" != yes ]]; then
@@ -63,5 +63,7 @@ if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
     kargo_cli delete freight --project "$KARGO_PROJECT" "${freight[@]}" >/dev/null
     ok "Freight deleted"
   fi
+  # Lab 10 turns the Promotion Controller on: the next run of the labs starts with it off
+  set_promotion_controller off
 fi
 printf '\n%sReset done.%s\n' "$_C_GREEN" "$_C_RESET"

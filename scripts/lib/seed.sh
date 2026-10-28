@@ -69,3 +69,46 @@ platform_preflight() {
   akuity kargo instance get "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG" >/dev/null 2>&1 ||
     die "The Kargo instance '$KARGO' does not exist. Run: make up"
 }
+
+# --- The Promotion Controller (needs platform_preflight first) ----------------------------------------------------------
+
+promotion_controller_enabled() {
+  local out
+  out="$(akuity kargo instance get "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG" -o yaml 2>/dev/null || true)"
+  grep -q '^  promoControllerEnabled: true' <<<"$out"
+}
+
+# set_promotion_controller on|off: applies the instance specification with that one field changed, and waits for the controller
+set_promotion_controller() {
+  local want="$1" dir doc value=false
+  [[ "$want" != on ]] || value=true
+  if [[ "$value" == true ]] && promotion_controller_enabled; then
+    ok "the Promotion Controller is already on"
+    return 0
+  fi
+  if [[ "$value" == false ]] && ! promotion_controller_enabled; then
+    ok "the Promotion Controller is already off"
+    return 0
+  fi
+  dir="$(mktemp -d)"
+  # the first document of the export is the instance itself; the field goes right under kargoInstanceSpec
+  doc="$(akuity kargo export "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG")"
+  doc="$(awk '/^---$/ {exit} {print}' <<<"$doc")"
+  printf '%s\n' "$doc" | awk -v v="$value" '
+    /^    promoControllerEnabled:/ {next}
+    {print}
+    /^  kargoInstanceSpec:/ {print "    promoControllerEnabled: " v}
+  ' >"$dir/kargo-instance.yaml"
+  akuity kargo apply -f "$dir" --name "$KARGO" --server "$AKUITY_SERVER_URL" --organization-name "$ORG" >/dev/null
+  rm -rf "$dir"
+  local _
+  for _ in $(seq 1 18); do
+    sleep 5
+    if [[ "$value" == true ]]; then
+      kubectl -n "${AGENT_NS:-akuity}" get deploy "kargo-promotion-controller-$CLUSTER_NAME" -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -qx 1 && break
+    else
+      kubectl -n "${AGENT_NS:-akuity}" get deploy "kargo-promotion-controller-$CLUSTER_NAME" >/dev/null 2>&1 || break
+    fi
+  done
+  ok "the Promotion Controller is $want"
+}

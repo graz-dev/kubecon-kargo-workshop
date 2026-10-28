@@ -361,6 +361,33 @@ catchup_9() {
   fi
 }
 
+dev_ran_custom_steps() {
+  local out
+  out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev -o yaml 2>/dev/null || true)"
+  grep -q 'Report Summary' <<<"$out"
+}
+
+catchup_10() {
+  step "Lab 10: the Promotion Controller, two custom steps, a promotion of dev that scans the image"
+  local name
+  # shellcheck source=lib/seed.sh
+  source "$LIB_DIR/seed.sh"
+  DRY_RUN=0
+  platform_preflight
+  set_promotion_controller on
+  apply_step_file 10 custom-steps.yaml
+  apply_step_file 10 stage-dev.yaml
+  if dev_ran_custom_steps; then
+    ok "dev has already run the custom steps"
+  else
+    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    name="$(newest_promotion dev)"
+    ok "promotion $name started (the scan takes about a minute)"
+    wait_for 300 "the promotion of dev finished" promotion_finished "$name"
+    wait_for 60 "the report of the scan is kept" dev_ran_custom_steps
+  fi
+}
+
 kargo_login
 for n in $(seq 1 "$TARGET"); do
   case "$n" in
@@ -373,6 +400,7 @@ for n in $(seq 1 "$TARGET"); do
     7) catchup_7 ;;
     8) catchup_8 ;;
     9) catchup_9 ;;
+    10) catchup_10 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

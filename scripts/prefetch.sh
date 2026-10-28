@@ -19,7 +19,7 @@ case "$MODE" in pull | load | all) ;; -h | --help) sed -n '2,9p' "${BASH_SOURCE[
 images() {
   {
     grep -v -E '^\s*(#|$)' "$ROOT_DIR/manifests/prefetch-images.txt"
-    printf '%s\n' "$CURL_IMAGE" "$SELFTEST_IMAGE"
+    printf '%s\n' "$CURL_IMAGE" "$SELFTEST_IMAGE" "$TRIVY_IMAGE" "$BUSYBOX_IMAGE"
     local v
     for v in $(prepublished_versions); do printf '%s:%s\n' "$(image_repo_cluster)" "$v"; done
     # what the last `make up` used, minus Kubernetes' own images: those are already inside the kind node image
