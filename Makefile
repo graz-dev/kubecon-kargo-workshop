@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit promotion-controller prefetch lint
+.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit promotion-controller aws-teardown prefetch lint
 
 # stub <target> <planned phase>
 define stub
@@ -64,6 +64,9 @@ check: ## Verify a step: make check STEP=setup, or a lab number: make check STEP
 promotion-controller: ## Turn the Promotion Controller of your Kargo instance on or off (Lab 10): make promotion-controller STATE=on|off
 	$(if $(STATE),,$(error STATE is required: on, off or status))
 	@scripts/promotion-controller.sh $(STATE)
+
+aws-teardown: ## For the organizer: delete what the attendees created in AWS in Lab 11, found by tag (a dry run unless CONFIRM=yes)
+	@scripts/aws-teardown.sh
 
 audit: ## List the audit events of the project: who approved what, and why
 	@scripts/audit.sh

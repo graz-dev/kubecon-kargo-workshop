@@ -1,0 +1,110 @@
+# Extra, optional: the staging Stage with a Lambda of its own, made by a Terraform in its promotion. Nothing to fill in.
+# It keeps the pull request of Lab 5 and the check of Lab 4: the Lambda is applied before the pull request is opened.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-staging","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: hcl-update
+          config:
+            path: ./repo/env/staging/terraform/env.auto.tfvars
+            updates:
+              - key: image_tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: tf-apply
+          as: tf-apply
+          config:
+            dir: ./repo/env/staging/terraform
+            env: &awsEnv
+              - name: AWS_REGION
+                value: us-east-1
+              - name: AWS_ACCESS_KEY_ID
+                value: ${{ secret('aws-creds').AWS_ACCESS_KEY_ID }}
+              - name: AWS_SECRET_ACCESS_KEY
+                value: ${{ secret('aws-creds').AWS_SECRET_ACCESS_KEY }}
+        - uses: tf-output
+          as: tf-output
+          config:
+            dir: ./repo/env/staging/terraform
+            env: *awsEnv
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: env.LAMBDA_URL
+                value: ${{ outputs['tf-output'].lambda_url.value }}
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        - uses: git-push
+          as: push
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            path: ./repo
+            generateTargetBranch: true
+        - uses: git-open-pr
+          as: open-pr
+          if: ${{ status('commit') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            sourceBranch: ${{ outputs['push'].branch }}
+            targetBranch: main
+            title: "Promote guestbook ${{ imageFrom(vars.image).Tag }} to staging"
+            description: |
+              Kargo staging promotion for guestbook ${{ imageFrom(vars.image).Tag }}.
+              Merging this PR approves the promotion to staging.
+        - uses: git-wait-for-pr
+          as: wait-for-pr
+          if: ${{ status('open-pr') != 'Skipped' }}
+          config:
+            repoURL: ${{ vars.repoURL }}
+            provider: gitea
+            prNumber: ${{ outputs['open-pr'].pr.id }}
+            pollInterval: 10s
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-staging
+                namespace: argocd
+  verification:
+    analysisTemplates:
+      - name: e2e-test
+    args:
+      - name: stage
+        value: staging

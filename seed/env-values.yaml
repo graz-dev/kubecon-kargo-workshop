@@ -7,3 +7,6 @@ ingress:
   enabled: true
   className: traefik
   host: @@STAGE_HOST@@
+# Lab 11 writes the URL of the Lambda here
+env:
+  LAMBDA_URL: ""

@@ -1,0 +1,111 @@
+# Extra, optional: the prod Stage with a Lambda of its own, shared by the three regions. Nothing to fill in.
+# It keeps the form, the approval and the audit event of Lab 9: the Lambda is applied after the approval.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: guestbook
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        - uses: get-user-input
+          as: reason
+          config:
+            display: Why does this version go to production?
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  title: Reason
+        - uses: wait-for-approval
+          as: approve
+          config:
+            minApprovals: 1
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: hcl-update
+          config:
+            path: ./repo/env/prod/terraform/env.auto.tfvars
+            updates:
+              - key: image_tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: tf-apply
+          as: tf-apply
+          config:
+            dir: ./repo/env/prod/terraform
+            env: &awsEnv
+              - name: AWS_REGION
+                value: us-east-1
+              - name: AWS_ACCESS_KEY_ID
+                value: ${{ secret('aws-creds').AWS_ACCESS_KEY_ID }}
+              - name: AWS_SECRET_ACCESS_KEY
+                value: ${{ secret('aws-creds').AWS_SECRET_ACCESS_KEY }}
+        - uses: tf-output
+          as: tf-output
+          config:
+            dir: ./repo/env/prod/terraform
+            env: *awsEnv
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+              - key: env.LAMBDA_URL
+                value: ${{ outputs['tf-output'].lambda_url.value }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+              - key: env.LAMBDA_URL
+                value: ${{ outputs['tf-output'].lambda_url.value }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+              - key: env.LAMBDA_URL
+                value: ${{ outputs['tf-output'].lambda_url.value }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: record-audit-event
+          as: audit
+          retry:
+            errorThreshold: 3
+          config:
+            type: approved
+            message: "Release ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }} approved by ${{ outputs.approve.responses[0].user }}."
+            actor: ${{ outputs.approve.responses[0].user }}
+            data:
+              reason: ${{ outputs.reason.values.reason }}

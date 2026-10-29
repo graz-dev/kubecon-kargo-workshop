@@ -273,7 +273,7 @@ make catchup STEP=7
 ## Stuck?
 
 - **Kargo says the channel needs a `secretRef`:** create the credentials first, with the `kargo create generic-credentials` command above.
-- **Kargo says the channel was not found when you apply the router:** apply the channel first.
+- **Kargo says the channel was not found when you apply the router:** apply the channel first. If you did, wait ten seconds, because the platform takes a moment to see it, and apply the router again.
 - **Nothing arrives in the inbox:** check that the address in your file is the one on the page, and that the router has an `output`.
   Then promote again.
 - **The pull request is merged, not closed:** the promotion succeeds, and you get a second success message. Try again with an older version.

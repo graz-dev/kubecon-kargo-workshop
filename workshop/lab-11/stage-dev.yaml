@@ -1,0 +1,108 @@
+# The dev Stage again. Its promotion now also applies a Terraform that makes a Lambda, and gives its URL to the application.
+# Replace every TODO. Everything else is ready.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-dev","namespace":"argocd"}]'
+spec:
+  # Where this Stage gets Freight from: straight from the Warehouse
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        direct: true
+  # What a promotion to this Stage does, step by step
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # A custom step (Lab 10): it says hello
+        - uses: hello-world
+          as: hello
+          config:
+            message: "Hello from the ${{ ctx.stage }} promotion!"
+        # A custom step (Lab 10): scan the image that is about to be promoted
+        - uses: trivy-image
+          as: scan
+          config:
+            image: ${{ vars.image }}:${{ imageFrom(vars.image).Tag }}
+        # 1. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 2. Change the image tag of dev in its values file
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # Tell the Terraform of dev which version is being promoted
+        - uses: hcl-update
+          config:
+            path: ./repo/env/dev/terraform/env.auto.tfvars
+            updates:
+              - key: TODO    # the variable of the Terraform that holds the image tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # Apply the Terraform: it creates or updates the Lambda. The credentials come from the Secret aws-creds
+        - uses: tf-apply
+          as: tf-apply
+          config:
+            dir: ./repo/env/dev/terraform
+            env: &awsEnv
+              - name: AWS_REGION
+                value: us-east-1
+              - name: AWS_ACCESS_KEY_ID
+                value: ${{ secret('aws-creds').AWS_ACCESS_KEY_ID }}
+              - name: AWS_SECRET_ACCESS_KEY
+                value: TODO    # the key AWS_SECRET_ACCESS_KEY of the Secret, read with secret()
+        # Read what the Terraform made: the URL of the Lambda
+        - uses: tf-output
+          as: tf-output
+          config:
+            dir: ./repo/env/dev/terraform
+            env: *awsEnv
+        # 3. Commit the change
+        # Give the URL to the application
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: env.LAMBDA_URL
+                value: TODO    # the output lambda_url of the step tf-output
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        # 4. Push it
+        - uses: git-push
+          config:
+            path: ./repo
+        # 5. Tell Argo CD to sync the dev application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-dev
+                namespace: argocd
+  # What to check after a promotion. Freight only counts as verified in this Stage if the check passes.
+  verification:
+    analysisTemplates:
+      - name: smoke-test
+    args:
+      - name: stage
+        value: dev

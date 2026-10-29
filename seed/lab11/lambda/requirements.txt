@@ -1,0 +1,3 @@
+# boto3 is provided by the AWS Lambda Python runtime, so nothing needs to be
+# bundled into the Zip. Listed here for local development / clarity only.
+# boto3

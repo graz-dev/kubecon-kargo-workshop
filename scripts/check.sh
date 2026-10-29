@@ -13,6 +13,7 @@
 #   scripts/check.sh 8            lab 8: dev rolled itself back to the stable Freight when the check of 1.3.0 failed
 #   scripts/check.sh 9            lab 9: a freeze window on prod, and a promotion to prod that asked for a reason, an approval and an audit event
 #   scripts/check.sh 10           lab 10: the Promotion Controller is on, and a promotion of dev ran two custom steps, a greeting and a scan
+#   scripts/check.sh 11           lab 11: dev applies a Terraform that makes a Lambda, and the application has its URL
 #
 # The other labs add their own steps in later phases.
 set -euo pipefail
@@ -567,6 +568,53 @@ check_lab10() {
   fi
 }
 
+check_lab11() {
+  local stage_yaml promotions url answer
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="aws-creds" {f=1} END {exit !f}'; then
+    good "the AWS credentials are in the Secret aws-creds"
+  else
+    bad "no Secret called aws-creds" "create it with the key and the secret the instructor gave you (step 1 of the lab)"
+  fi
+  stage_yaml="$(kargo_cli get stage dev --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'uses: tf-apply' <<<"$stage_yaml" && grep -q 'uses: tf-output' <<<"$stage_yaml" && grep -q 'uses: hcl-update' <<<"$stage_yaml"; then
+    good "dev runs the Terraform steps"
+  else
+    bad "dev is missing hcl-update, tf-apply or tf-output" "apply yours: kargo apply -f work/lab-11/stage-dev.yaml"
+  fi
+  check_todos 11
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage dev -o yaml 2>/dev/null || true)"
+  if grep -q -E 'Apply complete!' <<<"$promotions"; then
+    good "a promotion of dev applied the Terraform"
+  else
+    bad "no promotion of dev has applied the Terraform" "promote: kargo promote --project $KARGO_PROJECT --stage dev --warehouse app (it takes about a minute and a half)"
+  fi
+
+  section "Git, the Lambda and the application"
+  url="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/raw/env/dev/k8s/values.yaml" 2>/dev/null | sed -n 's/^ *LAMBDA_URL: *"\{0,1\}\([^" ]*\)"\{0,1\}.*/\1/p' | head -1)"
+  if [[ "$url" == https://*lambda-url* ]]; then
+    good "Git: env/dev/k8s/values.yaml has the URL of the Lambda"
+  else
+    bad "Git: the dev values file has no URL of the Lambda" "the promotion has not reached the step that writes it: look at its steps in Kargo"
+    return 0
+  fi
+  answer="$(curl -s -m 15 "$url" 2>/dev/null || true)"
+  if grep -q '"stage": "dev"' <<<"$answer"; then
+    good "the Lambda answers: $answer"
+  else
+    bad "the Lambda does not answer as expected" "open $url in your browser"
+  fi
+  if curl -s -m 8 --resolve "$(service_host guestbook-dev):${HTTP_PORT}:127.0.0.1" "$(service_url guestbook-dev)/config.js" 2>/dev/null | grep -q 'lambda-url'; then
+    good "the application at $(service_url guestbook-dev) knows the URL"
+  else
+    bad "the application does not have the URL yet" "give Argo CD a minute, or check that the application guestbook-dev is Synced"
+  fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -578,9 +626,10 @@ case "$STEP" in
   8) check_lab8 ;;
   9) check_lab9 ;;
   10) check_lab10 ;;
+  11) check_lab11 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11." ;;
 esac
 
 printf '\n'

@@ -16,6 +16,7 @@ Follow the guides in order. Each one is a short list of steps.
 | [Lab 8 - Automatic rollback](lab-8/README.md) | after Lab 7 | A broken release goes back by itself | Enterprise |
 | [Lab 9 - Governance](lab-9/README.md) | after Lab 8 | A freeze, an approval and an audit trail for production | Enterprise |
 | [Lab 10 - Custom steps](lab-10/README.md) | after Lab 9 | Run your own container as a step of a promotion (alpha) | Enterprise |
+| [Lab 11 - Beyond Kubernetes](lab-11/README.md) | after Lab 10 | Apply Terraform from a promotion and give the Lambda it makes to the application | Enterprise |
 
 The other labs follow. The **Features** column says whether a lab uses open-source Kargo or Kargo Enterprise features.
 

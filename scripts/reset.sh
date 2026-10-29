@@ -52,7 +52,9 @@ if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
   apply_kargo_project yes
   # The credentials of the Lab 7 channel are a plain Secret: the prune does not know it
   kargo_login
-  kargo_cli delete generic-credentials --project "$KARGO_PROJECT" inbox-credentials >/dev/null 2>&1 || true
+  for secret in inbox-credentials aws-creds; do
+    kargo_cli delete generic-credentials --project "$KARGO_PROJECT" "$secret" >/dev/null 2>&1 || true
+  done
   rm -f "$INBOX_FILE"
   # Pruning a Warehouse leaves its Freight behind, and a new Warehouse called 'app' would adopt it: delete it too
   freight=()

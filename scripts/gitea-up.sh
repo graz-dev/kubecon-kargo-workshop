@@ -194,5 +194,7 @@ else
   ok "the repository already has content (use 'make reset' to start over)"
 fi
 
+"$(dirname "${BASH_SOURCE[0]}")/lab11-files.sh"
+
 printf '\n%sGitea is ready.%s\n' "$_C_GREEN" "$_C_RESET"
 printf '  %s   attendee: %s / %s\n  repository: %s\n' "$GITEA_URL" "$GITEA_USER" "$GITEA_PASSWORD" "$(gitea_repo_url)"

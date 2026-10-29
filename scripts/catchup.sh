@@ -65,6 +65,39 @@ apply_step_file() { # <N> <file>
   ok "applied steps/$1/$2"
 }
 
+# kargo promote, for a Stage that was applied a moment ago: the platform needs a few seconds to see it, and until then it answers
+# "could not find Stage". Tries for about a minute; any other error stops at once.
+kargo_promote() {
+  local try out
+  for try in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    if out="$(kargo_cli promote "$@" 2>&1)"; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    case "$out" in
+      *"could not find"* | *"Not found"* | *"not found"*) sleep 5 ;;
+      *) break ;;
+    esac
+  done
+  printf '%s\n' "$out" >&2
+  return 1
+}
+
+# Like apply_step_file, for a file that points to something applied a moment ago (an event router and its channel): the platform
+# needs a few seconds to see the new resource, and until then it answers "not found". Tries for about a minute.
+apply_step_file_waiting() { # <N> <file>
+  local try
+  for try in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    if apply_step_file "$1" "$2" 2>"$WORK/apply.err"; then
+      return 0
+    fi
+    grep -q 'Not found' "$WORK/apply.err" || break
+    sleep 5
+  done
+  cat "$WORK/apply.err" >&2
+  die "Could not apply steps/$1/$2"
+}
+
 catchup_1() {
   step "Lab 1: the first release, the dev Stage, the first promotion"
   "$LIB_DIR/../release.sh" 1.0.0
@@ -73,7 +106,7 @@ catchup_1() {
   if [[ "$(repo_tag dev)" == "1.0.0" ]] && promotion_succeeded dev; then
     ok "dev already has 1.0.0: nothing to promote"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
     ok "promotion to dev started"
     wait_for 240 "the promotion to dev succeeded" promotion_succeeded dev
   fi
@@ -94,7 +127,7 @@ catchup_2() {
     # the page of dev can show 1.1.0 a few seconds before Kargo marks the Freight as verified in dev: staging only takes
     # Freight that is, so wait for that and name the Freight instead of letting Kargo choose
     wait_for 120 "Freight 1.1.0 is verified in dev" freight_is_verified dev 1.1.0
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.1.0)" --stage staging >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.1.0)" --stage staging >/dev/null
     ok "promotion to staging started"
     wait_for 240 "the promotion to staging succeeded" promotion_succeeded staging
   fi
@@ -113,7 +146,7 @@ catchup_3() {
     ok "staging already has 1.2.0: nothing to promote"
   else
     wait_for 120 "Freight 1.2.0 is verified in dev" freight_is_verified dev 1.2.0
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage staging >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage staging >/dev/null
     ok "promotion to staging started"
   fi
   wait_for 240 "staging runs 1.2.0" stage_runs staging 1.2.0
@@ -121,7 +154,7 @@ catchup_3() {
     ok "production already has 1.2.0: nothing to promote"
   else
     wait_for 120 "Freight 1.2.0 is verified in staging" freight_is_verified staging 1.2.0
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.2.0)" --stage prod >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.2.0)" --stage prod >/dev/null
     ok "promotion to prod started"
   fi
   # the three regions follow prod by themselves
@@ -152,7 +185,7 @@ catchup_4() {
   fi
   if stage_runs dev 1.3.0; then
     # the rollback: promote the Freight that was there before
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev 1.2.0)" --stage dev >/dev/null
     ok "rollback of dev to 1.2.0 started"
     wait_for 240 "dev runs 1.2.0 again" stage_runs dev 1.2.0
   fi
@@ -160,7 +193,7 @@ catchup_4() {
   wait_for 120 "Freight with the image 1.3.1 was created" has_freight 1.3.1
   if ! stage_runs dev 1.3.1; then
     # the rollback put a hold on auto-promotion: promoting the current candidate lifts it
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
     ok "promotion of 1.3.1 to dev started (it lifts the hold)"
     wait_for 240 "dev runs 1.3.1" stage_runs dev 1.3.1
   fi
@@ -181,7 +214,7 @@ staging_through_pr() { # <version>
     ok "staging already has $version: nothing to promote"
   else
     if ! has_open_pull_request; then
-      kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev "$version")" --stage staging >/dev/null
+      kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in dev "$version")" --stage staging >/dev/null
       ok "promotion to staging started"
       wait_for 120 "Kargo opened a pull request in Gitea" has_open_pull_request
     fi
@@ -224,7 +257,7 @@ catchup_6() {
   if [[ "$(repo_tag prod-emea)" == "$version" ]]; then
     ok "production already has $version: nothing to promote"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging "$version")" --stage prod >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging "$version")" --stage prod >/dev/null
     ok "promotion to prod started"
   fi
   for region in prod-amer-east prod-amer-west prod-emea; do
@@ -254,24 +287,24 @@ catchup_7() {
     ok "credentials inbox-credentials created"
   fi
   apply_step_file 7 message-channel.yaml
-  apply_step_file 7 event-router.yaml
+  apply_step_file_waiting 7 event-router.yaml
   if inbox_has "$id" PromotionSucceeded; then
     ok "the inbox already has a message for a promotion that succeeded"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
     wait_for 120 "the inbox received PromotionSucceeded" inbox_has "$id" PromotionSucceeded
   fi
   if inbox_has "$id" PromotionFailed; then
     ok "the inbox already has a message for a promotion that failed"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.3.1)" --stage staging >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_verified_in staging 1.3.1)" --stage staging >/dev/null
     wait_for 120 "Kargo opened a pull request in Gitea" has_open_pull_request
     number="$(open_pull_request)"
     gitea_api PATCH "/repos/$GITEA_ORG/$GITEA_REPO/pulls/$number" -o /dev/null -d '{"state":"closed"}'
     ok "pull request $number closed without merging"
     wait_for 120 "the inbox received PromotionFailed" inbox_has "$id" PromotionFailed
     # a failed promotion leaves staging with an error until the next one: promote what it already has
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage staging >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage staging >/dev/null
     wait_for 120 "staging is ready again" stage_ready staging
   fi
 }
@@ -303,14 +336,14 @@ catchup_8() {
   if has_rollback_promotion; then
     ok "dev has already rolled itself back once"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --freight "$(freight_named 1.3.0)" --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --freight "$(freight_named 1.3.0)" --stage dev >/dev/null
     ok "1.3.0 promoted to dev"
     wait_for 240 "Kargo rolled dev back by itself" has_rollback_promotion
   fi
   wait_for 240 "dev runs $version again" stage_runs dev "$version"
   if ! dev_has_no_hold; then
     # the rollback put a hold on auto-promotion: promoting the current candidate lifts it
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
     wait_for 120 "the hold on dev is gone" dev_has_no_hold
   fi
   wait_for 240 "$version is verified in dev" freight_is_verified dev "$version"
@@ -347,7 +380,7 @@ catchup_9() {
   if prod_was_approved; then
     ok "a promotion to prod was already approved and recorded"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage prod >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage prod >/dev/null
     name="$(newest_promotion prod)"
     ok "promotion $name started"
     # the attendee answers in the Kargo UI: here it is the call the UI makes, with the same user
@@ -380,11 +413,37 @@ catchup_10() {
   if dev_ran_custom_steps; then
     ok "dev has already run the custom steps"
   else
-    kargo_cli promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
     name="$(newest_promotion dev)"
     ok "promotion $name started (the scan takes about a minute)"
     wait_for 300 "the promotion of dev finished" promotion_finished "$name"
     wait_for 60 "the report of the scan is kept" dev_ran_custom_steps
+  fi
+}
+
+dev_has_lambda_url() {
+  gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/raw/env/dev/k8s/values.yaml" 2>/dev/null | grep -q 'LAMBDA_URL: *"\{0,1\}https://'
+}
+
+catchup_11() {
+  step "Lab 11: dev applies the Terraform that makes a Lambda and gives its URL to the application"
+  local name
+  # the Secret holds the key of the instructor: a script cannot invent it
+  if ! kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="aws-creds" {f=1} END {exit !f}'; then
+    die "There is no Secret called aws-creds. Create it first with the key and the secret that the instructor gave you (step 1 of Lab 11), then run this again."
+  fi
+  # the Lambda and the Terraform are in the repository (make seed adds them)
+  "$LIB_DIR/../lab11-files.sh"
+  apply_step_file 11 stage-dev.yaml
+  if dev_has_lambda_url && promotion_succeeded dev && [[ "${FORCE:-0}" != 1 ]]; then
+    ok "dev already has the URL of its Lambda: nothing to promote"
+  else
+    # same id, same state file: when the Lambda exists the Terraform finds it and changes nothing
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage dev >/dev/null
+    name="$(newest_promotion dev)"
+    ok "promotion $name started (about a minute and a half)"
+    wait_for 360 "the promotion of dev finished" promotion_finished "$name"
+    wait_for 60 "the URL of the Lambda is in Git" dev_has_lambda_url
   fi
 }
 
@@ -401,6 +460,7 @@ for n in $(seq 1 "$TARGET"); do
     8) catchup_8 ;;
     9) catchup_9 ;;
     10) catchup_10 ;;
+    11) catchup_11 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

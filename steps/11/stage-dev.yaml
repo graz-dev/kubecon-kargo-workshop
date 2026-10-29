@@ -1,0 +1,91 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: @@KARGO_PROJECT@@
+  annotations:
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-dev","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        direct: true
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: @@GITEA_REPO_URL@@
+        - name: image
+          value: @@CLUSTER_IMAGE_REPO@@
+      steps:
+        - uses: hello-world
+          as: hello
+          config:
+            message: "Hello from the ${{ ctx.stage }} promotion!"
+        - uses: trivy-image
+          as: scan
+          config:
+            image: ${{ vars.image }}:${{ imageFrom(vars.image).Tag }}
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: hcl-update
+          config:
+            path: ./repo/env/dev/terraform/env.auto.tfvars
+            updates:
+              - key: image_tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: tf-apply
+          as: tf-apply
+          config:
+            dir: ./repo/env/dev/terraform
+            env: &awsEnv
+              - name: AWS_REGION
+                value: @@AWS_REGION@@
+              - name: AWS_ACCESS_KEY_ID
+                value: ${{ secret('aws-creds').AWS_ACCESS_KEY_ID }}
+              - name: AWS_SECRET_ACCESS_KEY
+                value: ${{ secret('aws-creds').AWS_SECRET_ACCESS_KEY }}
+        - uses: tf-output
+          as: tf-output
+          config:
+            dir: ./repo/env/dev/terraform
+            env: *awsEnv
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: env.LAMBDA_URL
+                value: ${{ outputs['tf-output'].lambda_url.value }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-dev
+                namespace: argocd
+  verification:
+    analysisTemplates:
+      - name: smoke-test
+    args:
+      - name: stage
+        value: dev

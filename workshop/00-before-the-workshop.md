@@ -27,12 +27,18 @@ Copies the workshop to your laptop. Everything you run during the workshop is in
 <details>
 <summary>What you should see</summary>
 
-A new folder with files such as `Makefile` and `workshop.env`. You are now inside it.
+A new folder with files such as `Makefile` and `workshop.env.example`. You are now inside it.
 </details>
 
 ## 2. Choose your prefix
 
-Open `workshop.env` in an editor and set your prefix. Use your first name or a handle, in lowercase:
+Make your own copy of the settings, open it in an editor, and set your prefix. Use your first name or a handle, in lowercase:
+
+```sh
+cp workshop.env.example workshop.env
+```
+
+In `workshop.env`:
 
 ```sh
 WORKSHOP_PREFIX=anna

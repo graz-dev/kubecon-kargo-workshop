@@ -56,7 +56,9 @@ die() {
 
 # --- Configuration -------------------------------------------------------------
 # Files are parsed, never sourced: only KEY=value lines are read and nothing is executed.
-# Precedence: variables already in the environment > .env > workshop.env > versions.env.
+# Precedence: variables already in the environment > .env > workshop.env > workshop.env.example > versions.env.
+# workshop.env.example is the template (committed); workshop.env is the attendee's own copy (not in git) and is created from it
+# the first time. The template is read first, so a setting added later still has its default in an older workshop.env.
 # .env exists only on the workshop developers' machines; attendees edit workshop.env or pass VAR=value.
 
 _ENV_PRESET=""
@@ -99,6 +101,11 @@ load_env() {
   _ENV_LOADED=1
   _ENV_PRESET=" $(compgen -e | tr '\n' ' ') "
   _env_load_file "$ROOT_DIR/versions.env"
+  _env_load_file "$ROOT_DIR/workshop.env.example"
+  if [[ ! -f "$ROOT_DIR/workshop.env" && -f "$ROOT_DIR/workshop.env.example" ]]; then
+    cp "$ROOT_DIR/workshop.env.example" "$ROOT_DIR/workshop.env"
+    printf 'Created workshop.env from workshop.env.example. It is yours: set WORKSHOP_PREFIX in it.\n' >&2
+  fi
   _env_load_file "$ROOT_DIR/workshop.env"
   _env_load_file "$ROOT_DIR/.env"
   validate_env
@@ -432,6 +439,21 @@ inbox_uuid() {
 # Everything the inbox received, on one line (empty when nothing, or when it cannot be read)
 inbox_content() { # <id>
   curl -s -m 20 "https://webhook.site/token/$1/requests?per_page=100" 2>/dev/null | tr -d '\n' || true
+}
+
+# --- AWS (Lab 11) ----------------------------------------------------------------------------
+
+# The id of this attendee in AWS: the prefix plus four characters of a hash of the Akuity account email, so that two
+# attendees with the same prefix do not share a Lambda or a state file. Stable: the same account gets the same id.
+aws_participant() {
+  local email hash
+  email="$(akuity_email 2>/dev/null || true)"
+  if [[ -z "$email" ]]; then
+    printf '%s' "$WORKSHOP_PREFIX"
+    return 0
+  fi
+  hash="$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]' | { shasum 2>/dev/null || sha1sum; } | cut -c1-4)"
+  printf '%s-%s' "$WORKSHOP_PREFIX" "$hash"
 }
 
 # --- Small utilities -----------------------------------------------------------
