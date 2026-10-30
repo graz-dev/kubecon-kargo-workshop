@@ -14,6 +14,8 @@ spec:
         job:
           spec:
             backoffLimit: 0
+            # Kubernetes deletes the finished Job and its pod after 10 minutes
+            ttlSecondsAfterFinished: 600
             activeDeadlineSeconds: 90
             template:
               spec:
@@ -52,6 +54,8 @@ spec:
         job:
           spec:
             backoffLimit: 0
+            # Kubernetes deletes the finished Job and its pod after 10 minutes
+            ttlSecondsAfterFinished: 600
             activeDeadlineSeconds: 90
             template:
               spec:

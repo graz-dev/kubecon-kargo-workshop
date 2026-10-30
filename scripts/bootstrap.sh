@@ -91,8 +91,8 @@ DOCTOR_RC=$?
   printf 'shell:      bash %s (login shell %s)\n' "$BASH_VERSION" "${SHELL:-?}"
   printf 'docker:     %s\n' "$(docker_summary)"
   printf 'proxy vars: %s\n' "$(proxy_names)"
-  printf 'settings:   HTTP_PORT=%s WORKSHOP_DOMAIN=%s RELEASE_MODE=%s images=%s\n' \
-    "$HTTP_PORT" "$WORKSHOP_DOMAIN" "$RELEASE_MODE" "$(image_repo_source)"
+  printf 'settings:   HTTP_PORT=%s WORKSHOP_DOMAIN=%s images=%s\n' \
+    "$HTTP_PORT" "$WORKSHOP_DOMAIN" "$(image_repo_source)"
   printf '\nTools\n'
   "$LIB_DIR/../tools.sh" list
   cat "$WORK/doctor.txt"

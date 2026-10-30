@@ -8,6 +8,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 load_env
 [[ -x "$TOOLS_BIN/akuity" ]] || die "The akuity CLI is not installed in $TOOLS_BIN. Run: make tools"
+[[ -n "${AKUITY_SERVER_URL:-}" ]] || die "AKUITY_SERVER_URL is not set. Set it in workshop.env to the URL of your Akuity Platform (example: https://akuity.cloud)"
 
 if akuity_logged_in; then
   ok "already logged in to $AKUITY_SERVER_URL"

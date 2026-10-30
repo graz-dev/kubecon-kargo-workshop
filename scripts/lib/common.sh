@@ -112,10 +112,6 @@ load_env() {
 }
 
 validate_env() {
-  case "${RELEASE_MODE:-}" in
-    ghcr | registry) ;;
-    *) die "RELEASE_MODE must be 'ghcr' or 'registry' (got '${RELEASE_MODE:-}')" ;;
-  esac
   if [[ ! "${HTTP_PORT:-}" =~ ^[0-9]+$ ]] || ((HTTP_PORT < 1 || HTTP_PORT > 65535)); then
     die "HTTP_PORT must be a number between 1 and 65535 (got '${HTTP_PORT:-}')"
   fi
@@ -128,9 +124,12 @@ validate_env() {
 
 # --- The attendee's prefix and the names derived from it -------------------------------
 
-# Prints what is wrong with WORKSHOP_PREFIX, or nothing when it is fine
+# Prints what is wrong with the two settings every command on the platform needs (the Akuity Platform URL and WORKSHOP_PREFIX),
+# or nothing when they are fine
 prefix_problem() {
-  if [[ -z "${WORKSHOP_PREFIX:-}" ]]; then
+  if [[ -z "${AKUITY_SERVER_URL:-}" ]]; then
+    printf 'AKUITY_SERVER_URL is not set. Set it in workshop.env to the URL of your Akuity Platform (example: https://akuity.cloud)'
+  elif [[ -z "${WORKSHOP_PREFIX:-}" ]]; then
     printf 'WORKSHOP_PREFIX is not set. Set it in workshop.env to your first name or handle (example: anna)'
   elif [[ ! "$WORKSHOP_PREFIX" =~ ^[a-z][a-z0-9-]{0,11}$ || "$WORKSHOP_PREFIX" == *- ]]; then
     printf "WORKSHOP_PREFIX='%s' is not valid: use lowercase letters, digits and hyphens, start with a letter, at most 12 characters, no trailing hyphen (example: anna)" "$WORKSHOP_PREFIX"
@@ -158,13 +157,8 @@ require_prefix() {
 # Where the images are published (the "CI output"); also the source for `release`/`prefetch`
 image_repo_source() { printf '%s/%s/%s' "$IMAGE_REGISTRY" "$IMAGE_OWNER" "$IMAGE_NAME"; }
 
-# The repo the Warehouse watches and the chart pulls from, according to RELEASE_MODE
-image_repo_cluster() {
-  case "$RELEASE_MODE" in
-    ghcr) image_repo_source ;;
-    registry) printf '%s/%s/%s' "$CLUSTER_REGISTRY" "$IMAGE_OWNER" "$IMAGE_NAME" ;;
-  esac
-}
+# The repo the Warehouse watches and the chart pulls from: the images on the registry
+image_repo_cluster() { image_repo_source; }
 
 # ":8080" when HTTP_PORT is not 80, empty otherwise
 port_suffix() {
@@ -367,7 +361,7 @@ kargo_login() {
 }
 
 # --- Release state ----------------------------------------------------------------------------
-# `make release` moves the ceiling of the Warehouse's image constraint (RELEASE_MODE=ghcr). It is kept here so that
+# `make release` moves the ceiling of the Warehouse's image constraint. It is kept here so that
 # the labs' catch-up and a reset render the same Warehouse.
 RELEASE_FILE="$TOOLS_DIR/release"
 FIRST_RELEASE=1.0.0 # the first version the Warehouse may select

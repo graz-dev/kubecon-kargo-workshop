@@ -12,6 +12,7 @@ spec:
         job:
           spec:
             backoffLimit: 0
+            ttlSecondsAfterFinished: 600
             activeDeadlineSeconds: 90
             template:
               spec:
@@ -50,6 +51,7 @@ spec:
         job:
           spec:
             backoffLimit: 0
+            ttlSecondsAfterFinished: 600
             activeDeadlineSeconds: 90
             template:
               spec:

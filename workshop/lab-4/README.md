@@ -130,7 +130,7 @@ page. **Healthy is not the same as correct.** Only the check noticed.
 
 ![](/assets/lab-4-error-page.png)
 
-See the log of the check:
+See the log of the check. Kubernetes deletes the finished pod after ten minutes, so do it soon:
 
 ```sh
 kubectl -n akuity get pods | grep smoke

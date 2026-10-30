@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Makes an image version visible to the Warehouse: the "developer's CI shipped a new release" moment.
-# In RELEASE_MODE=ghcr every version is already on ghcr.io, so this moves the ceiling of the Warehouse's image
+# Every version is already on the registry, so this moves the ceiling of the Warehouse's image
 # constraint (">=1.0.0 <=VERSION") and changes its refresh annotation, which makes Kargo look at once.
 # The first release also creates the Warehouse (the labs start with `make release VERSION=1.0.0`).
 #
@@ -17,7 +17,6 @@ DRY_RUN="${DRY_RUN:-0}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-[[ "$RELEASE_MODE" == ghcr ]] || die "RELEASE_MODE=$RELEASE_MODE is not implemented yet: only 'ghcr' works (the local registry comes later)."
 case " $CATALOG_VERSIONS " in
   *" $VERSION "*) ;;
   *) die "Version '$VERSION' is not in the catalog ($CATALOG_VERSIONS)." ;;

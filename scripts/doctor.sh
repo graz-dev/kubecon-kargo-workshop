@@ -342,7 +342,7 @@ check_images() {
 
 check_state() {
   section "State"
-  row INFO "release mode" "$RELEASE_MODE ($(image_repo_cluster))"
+  row INFO "images" "$(image_repo_cluster)"
   if [[ "$DOCKER_OK" == 1 && -x "$TOOLS_BIN/kind" ]]; then
     if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
       row INFO "cluster" "'$CLUSTER_NAME' exists"

@@ -126,4 +126,4 @@ Keep the folder as it is, and see you at the workshop.
 ## Stuck?
 
 Run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
-**<SUPPORT_CONTACT>**. It has no passwords or tokens in it.
+**the address that `make bootstrap` prints** (it is `SUPPORT_CONTACT` in `workshop.env`). It has no passwords or tokens in it.
