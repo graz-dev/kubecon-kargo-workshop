@@ -1,0 +1,109 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: @@KARGO_PROJECT@@
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: @@GITEA_REPO_URL@@
+        - name: image
+          value: @@CLUSTER_IMAGE_REPO@@
+      steps:
+        - uses: get-user-input
+          as: reason
+          config:
+            display: Why does this version go to production?
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  title: Reason
+        - uses: snow-create
+          as: snow-create
+          config:
+            credentials: &snowCredentials
+              secretName: kargo-step-snow
+              type: basic
+            tableName: change_request
+            template:
+              type: normal
+            parameters:
+              short_description: "Kargo workshop: release ${{ imageFrom(vars.image).Tag }} to production"
+              description: ${{ outputs.reason.values.reason }}
+              assignment_group: Application Development
+              impact: "3"
+              urgency: "3"
+        - uses: snow-wait-for-condition
+          as: snow-wait
+          config:
+            credentials: *snowCredentials
+            tableName: change_request
+            ticketId: ${{ outputs['snow-create'].sys_id }}
+            condition: state=-1
+            pollInterval: 15s
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: snow-update
+          as: snow-update
+          config:
+            credentials: *snowCredentials
+            tableName: change_request
+            ticketId: ${{ outputs['snow-create'].sys_id }}
+            parameters:
+              state: "0"
+              work_notes: "Kargo promoted ${{ imageFrom(vars.image).Tag }} to all the production regions (${{ ctx.promotion }})."
+        - uses: record-audit-event
+          as: audit
+          retry:
+            errorThreshold: 3
+          config:
+            type: approved
+            message: "Release ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }} approved in ServiceNow (${{ outputs['snow-create'].number }})."
+            data:
+              reason: ${{ outputs.reason.values.reason }}
+              change: ${{ outputs['snow-create'].number }}

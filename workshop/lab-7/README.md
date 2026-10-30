@@ -206,7 +206,7 @@ Kargo cannot send email as you any more.
 The password goes into a Secret in Kargo, so it never sits in a file. Run these three lines in your terminal, one after the other:
 
 ```sh
-read -rs APP_PASSWORD
+printf 'Gmail app password: '; read -rs APP_PASSWORD; echo
 kargo create generic-credentials --project guestbook smtp-credentials --set username=you@gmail.com --set password="$APP_PASSWORD"
 unset APP_PASSWORD
 ```
@@ -214,7 +214,7 @@ unset APP_PASSWORD
 <details>
 <summary>What it does</summary>
 
-1. `read -rs APP_PASSWORD` waits for you. **Paste the 16 characters and press Enter.** Nothing appears on the screen while you paste: that
+1. The first line shows the label *Gmail app password:* and waits for you. **Paste the 16 characters and press Enter.** Nothing appears on the screen while you paste: that
    is on purpose, so nobody can read it over your shoulder.
 2. The second line sends the Gmail address (replace `you@gmail.com` with yours) and the password to Kargo, which stores them in a Secret
    called `smtp-credentials`. The email channel will use it.

@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Does a lab for you, and every lab before it, so you can go on when you are behind. Safe to repeat: what is already
-# done is skipped. The finished files are in steps/<N>/ (the same ones the lab asks you to write).
+# Does a lab for you, and every lab before it, so you can go on when you are behind. It looks backwards from the lab you ask for
+# for the last one that is already done, and starts at the next one: the labs come in order, so what is before a finished lab is
+# finished too. Safe to repeat: what is already done inside a lab is skipped. The finished files are in steps/<N>/ (the same ones
+# the lab asks you to write).
 #
 #   scripts/catchup.sh <N>
+#   FORCE=1 scripts/catchup.sh <N>     start at lab 1 even if later labs look done
+#   FROM=12 scripts/catchup.sh 12      start at lab 12, without looking
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -84,14 +88,14 @@ kargo_promote() {
 }
 
 # Like apply_step_file, for a file that points to something applied a moment ago (an event router and its channel): the platform
-# needs a few seconds to see the new resource, and until then it answers "not found". Tries for about a minute.
+# needs a few seconds to see the new resource (a Secret too), and until then it answers "not found". Tries for about a minute.
 apply_step_file_waiting() { # <N> <file>
   local try
   for try in 1 2 3 4 5 6 7 8 9 10 11 12; do
     if apply_step_file "$1" "$2" 2>"$WORK/apply.err"; then
       return 0
     fi
-    grep -q 'Not found' "$WORK/apply.err" || break
+    grep -q -i 'not found' "$WORK/apply.err" || break
     sleep 5
   done
   cat "$WORK/apply.err" >&2
@@ -286,7 +290,7 @@ catchup_7() {
     kargo_cli create generic-credentials --project "$KARGO_PROJECT" inbox-credentials --set bearerToken=workshop >/dev/null
     ok "credentials inbox-credentials created"
   fi
-  apply_step_file 7 message-channel.yaml
+  apply_step_file_waiting 7 message-channel.yaml
   apply_step_file_waiting 7 event-router.yaml
   if inbox_has "$id" PromotionSucceeded; then
     ok "the inbox already has a message for a promotion that succeeded"
@@ -447,8 +451,116 @@ catchup_11() {
   fi
 }
 
+prod_went_through_servicenow() {
+  local out
+  out="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage prod -o yaml 2>/dev/null || true)"
+  grep -q 'updated successfully' <<<"$out"
+}
+
+catchup_12() {
+  step "Lab 12: prod opens a change request in ServiceNow and goes on when it is approved"
+  local name
+  # the Secret holds the user and the password of the instructor: a script cannot invent them
+  if ! kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="kargo-step-snow" {f=1} END {exit !f}'; then
+    die "There is no Secret called kargo-step-snow. Create it first with the address, the user and the password that the instructor gave you (step 1 of Lab 12), then run this again."
+  fi
+  apply_step_file 12 stage-prod.yaml
+  if prod_went_through_servicenow && [[ "${FORCE:-0}" != 1 ]]; then
+    ok "a promotion of prod already went through a change request"
+  else
+    kargo_promote --project "$KARGO_PROJECT" --warehouse app --stage prod >/dev/null
+    name="$(newest_promotion prod)"
+    ok "promotion $name started"
+    wait_for 120 "the promotion asks for a reason" promotion_step_waiting "$name" reason
+    kargo_api POST "/enterprise/v1beta1/projects/$KARGO_PROJECT/promotions/$name/steps/reason/respond" \
+      '{"action":"submit","values":{"reason":"Catch-up: approved by the workshop script"}}' >/dev/null
+    wait_for 120 "the change request was opened in ServiceNow" promotion_step_waiting "$name" snow-wait
+    printf '  The change request must be approved in ServiceNow now. Ask the instructor: they approve all of them with one script.\n'
+    printf '  This waits up to 15 minutes.\n'
+    wait_for 900 "the change request was approved and the promotion to prod finished" promotion_finished "$name"
+    wait_for 60 "the change request was closed" prod_went_through_servicenow
+  fi
+}
+
+# --- Is a lab already done? -------------------------------------------------------------------------------------------------
+# Looks for what the lab leaves behind and a later lab does not undo: Freight, successful Promotions, audit events. It does not
+# look at what a Stage runs now, because the next labs change that.
+
+has_secret() { # <name>
+  kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk -v n="$1" '$1==n {f=1} END {exit !f}'
+}
+stage_exists() {
+  kargo_cli get stages --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk -v s="$1" '$1==s {f=1} END {exit !f}'
+}
+
+lab_done() { # <N>
+  local version out
+  case "$1" in
+    1) has_freight 1.0.0 && promotion_succeeded dev ;;
+    2) has_freight 1.1.0 && promotion_succeeded staging ;;
+    3) has_freight 1.2.0 && stage_exists prod-emea && promotion_succeeded prod ;;
+    4) has_freight 1.3.0 && has_freight 1.3.1 && freight_is_verified dev 1.3.1 ;;
+    5) out="$(kargo_cli get stage staging --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+       grep -q 'git-wait-for-pr' <<<"$out" && freight_is_verified staging 1.3.1 ;;
+    6) version="${LIVE_VERSION:-${LIVE_VERSIONS%% *}}"
+       out="$(kargo_cli get warehouse app --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+       [[ -n "$version" ]] && grep -q 'NewestBuild' <<<"$out" && has_freight "$version" && freight_is_verified staging "$version" ;;
+    7) local id
+       # the inbox and its messages outlive a reset (they are on webhook.site): the Secret of the channel does not
+       id="$(inbox_uuid)"
+       has_secret inbox-credentials && [[ -n "$id" ]] && inbox_has "$id" PromotionSucceeded && inbox_has "$id" PromotionFailed ;;
+    8) has_rollback_promotion ;;
+    9) prod_was_approved ;;
+    10) dev_ran_custom_steps ;;
+    11) dev_has_lambda_url ;;
+    12) prod_went_through_servicenow ;;
+    *) return 1 ;;
+  esac
+}
+
+# The lab to start at: the one after the last lab that is already done, looking back from the target
+first_lab_to_do() {
+  local n
+  if [[ -n "${FROM:-}" ]]; then
+    printf '%s' "$FROM"
+    return 0
+  fi
+  if [[ "${FORCE:-0}" != 1 ]]; then
+    for ((n = TARGET; n >= 1; n--)); do
+      if lab_done "$n"; then
+        printf '%s' $((n + 1))
+        return 0
+      fi
+    done
+  fi
+  printf '1'
+}
+
+# Two labs need a Secret that only the instructor can give. A catch-up always includes every lab before the one you ask for, so say
+# now what is missing, not after the first ten labs.
+preflight_secrets() { # <first lab to do>
+  local missing=""
+  if (($1 <= 11 && TARGET >= 11)) && ! has_secret aws-creds; then
+    missing+="  - aws-creds: the key and the secret of AWS that the instructor gave you (step 1 of Lab 11)"$'\n'
+  fi
+  if (($1 <= 12 && TARGET >= 12)) && ! has_secret kargo-step-snow; then
+    missing+="  - kargo-step-snow: the address, the user and the password of ServiceNow that the instructor gave you (step 1 of Lab 12)"$'\n'
+  fi
+  [[ -z "$missing" ]] || die "Lab $TARGET needs Secrets that you have not created yet:"$'\n'"${missing}Create them, then run this again. Nothing was done."
+}
+
 kargo_login
-for n in $(seq 1 "$TARGET"); do
+FIRST="$(first_lab_to_do)"
+if ((FIRST > TARGET)); then
+  ok "Lab $TARGET is already done: nothing to do"
+  printf '\n%sCaught up with lab %s.%s Run: make check STEP=%s\n' "$_C_GREEN" "$TARGET" "$_C_RESET" "$TARGET"
+  exit 0
+fi
+if ((FIRST > 1)); then
+  ok "lab $((FIRST - 1)) is already done: starting at lab $FIRST"
+fi
+preflight_secrets "$FIRST"
+for n in $(seq "$FIRST" "$TARGET"); do
   case "$n" in
     1) catchup_1 ;;
     2) catchup_2 ;;
@@ -461,6 +573,7 @@ for n in $(seq 1 "$TARGET"); do
     9) catchup_9 ;;
     10) catchup_10 ;;
     11) catchup_11 ;;
+    12) catchup_12 ;;
     *) die "Lab $n is not written yet." ;;
   esac
 done

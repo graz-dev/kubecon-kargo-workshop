@@ -23,10 +23,17 @@ Know more: [`hcl-update`](https://docs.kargo.io/user-guide/reference-docs/promot
 ## 1. Give Kargo the AWS credentials
 
 The instructor gives you an AWS access key and its secret. Kargo keeps them in a Secret and uses them only when a promotion applies the
-Terraform. Run these three lines, one after the other. After the first two, paste the value and press Enter: nothing appears on the screen.
+Terraform. First, run these two lines, **one at a time**. Each one tells you what to paste: paste it and press Enter. Nothing appears on the
+screen while you paste, so do not worry.
 
 ```sh
-read -rs AWS_ACCESS_KEY_ID; read -rs AWS_SECRET_ACCESS_KEY
+printf 'AWS access key ID: '; read -rs AWS_ACCESS_KEY_ID; echo
+printf 'AWS secret access key: '; read -rs AWS_SECRET_ACCESS_KEY; echo
+```
+
+Then run:
+
+```sh
 kargo create generic-credentials --project guestbook aws-creds \
   --set AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
@@ -35,8 +42,8 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 <details>
 <summary>What it does</summary>
 
-`read -rs` waits for what you paste and does not show it. The second command sends the two values to Kargo, which stores them in a Secret
-called `aws-creds`. The third forgets them in your terminal. They never sit in a file.
+Each `printf` shows a label, and `read -rs` waits for what you paste and does not show it. The `kargo` command sends the two values to Kargo,
+which stores them in a Secret called `aws-creds`. `unset` forgets them in your terminal. They never sit in a file.
 
 Kargo shows the value of a Secret as `*** REDACTED ***`, so you cannot read it back. These are shared workshop credentials: they can only
 manage Lambdas of this workshop, and the instructor disables them at the end of the session.

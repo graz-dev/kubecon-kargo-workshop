@@ -615,6 +615,43 @@ check_lab11() {
   fi
 }
 
+check_lab12() {
+  local stage_yaml promotions
+  section "Kargo"
+  if ! kargo_login 2>/dev/null; then
+    bad "could not log in to Kargo with the admin account" "run: make urls, and log in again with the kargo login line it prints"
+    return 0
+  fi
+  if kargo_cli get generic-credentials --project "$KARGO_PROJECT" --no-headers 2>/dev/null | awk '$1=="kargo-step-snow" {f=1} END {exit !f}'; then
+    good "the ServiceNow credentials are in the Secret kargo-step-snow"
+  else
+    bad "no Secret called kargo-step-snow" "create it with the address, the user and the password the instructor gave you (step 1 of the lab)"
+  fi
+  stage_yaml="$(kargo_cli get stage prod --project "$KARGO_PROJECT" -o yaml 2>/dev/null || true)"
+  if grep -q 'uses: snow-create' <<<"$stage_yaml" && grep -q 'uses: snow-wait-for-condition' <<<"$stage_yaml" && grep -q 'uses: snow-update' <<<"$stage_yaml"; then
+    good "prod opens a change request, waits for it and closes it"
+  else
+    bad "prod is missing snow-create, snow-wait-for-condition or snow-update" "apply yours: kargo apply -f work/lab-12/stage-prod.yaml"
+  fi
+  if grep -q 'condition: state=-1' <<<"$stage_yaml"; then
+    good "prod waits until the change request is in Implement (state=-1)"
+  else
+    bad "the wait is not for state=-1" "the condition of snow-wait-for-condition is state=-1: that is Implement"
+  fi
+  check_todos 12
+  promotions="$(kargo_cli get promotions --project "$KARGO_PROJECT" --stage prod -o yaml 2>/dev/null || true)"
+  if grep -q -E 'number: CHG[0-9]+' <<<"$promotions"; then
+    good "a promotion of prod opened the change request $(grep -o -E 'number: CHG[0-9]+' <<<"$promotions" | tail -1 | cut -d' ' -f2)"
+  else
+    bad "no promotion of prod has opened a change request" "promote, then answer the form in the Kargo UI: kargo promote --project $KARGO_PROJECT --stage prod --warehouse app"
+  fi
+  if grep -q 'updated successfully' <<<"$promotions"; then
+    good "the change request was approved and the promotion closed it"
+  else
+    bad "no promotion of prod has finished with its change request" "the change request must be approved in ServiceNow: ask the instructor. The promotion waits at the step snow-wait"
+  fi
+}
+
 case "$STEP" in
   1) check_lab1 ;;
   2) check_lab2 ;;
@@ -627,9 +664,10 @@ case "$STEP" in
   9) check_lab9 ;;
   10) check_lab10 ;;
   11) check_lab11 ;;
+  12) check_lab12 ;;
   setup) check_setup ;;
   "") die "Say which step: make check STEP=setup" ;;
-  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11." ;;
+  *) die "Unknown step '$STEP'. Known now: setup, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12." ;;
 esac
 
 printf '\n'

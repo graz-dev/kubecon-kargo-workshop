@@ -50,9 +50,9 @@ fi
 printf '%s' "$FIRST_RELEASE" >"$RELEASE_FILE"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
   apply_kargo_project yes
-  # The credentials of the Lab 7 channel are a plain Secret: the prune does not know it
+  # The credentials of Labs 7, 11 and 12 are plain Secrets: the prune does not know them
   kargo_login
-  for secret in inbox-credentials aws-creds; do
+  for secret in inbox-credentials aws-creds kargo-step-snow; do
     kargo_cli delete generic-credentials --project "$KARGO_PROJECT" "$secret" >/dev/null 2>&1 || true
   done
   rm -f "$INBOX_FILE"

@@ -1,0 +1,123 @@
+# The prod Stage again. The approval of Lab 9 is now a change request in ServiceNow: the promotion opens it, waits until it reaches
+# Implement, changes the regions in Git, and closes the change request.
+# Replace every TODO. Everything else is ready.
+# The text "Kargo workshop" at the start of the short description is used by the instructor to find your change: leave it.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: guestbook
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        # Port 80 is assumed. If you use another port in workshop.env, add it here: gitea.localtest.me:8080
+        - name: repoURL
+          value: http://gitea.localtest.me/workshop/guestbook-gitops
+        - name: image
+          value: ghcr.io/graz-dev/kargo-workshop-guestbook
+      steps:
+        # 1. Ask the person who promotes why this goes to production: a form in the Kargo UI (Lab 9)
+        - uses: get-user-input
+          as: reason
+          config:
+            display: Why does this version go to production?
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  title: Reason
+        # 2. Open a change request in ServiceNow. The reason goes in its description
+        - uses: snow-create
+          as: snow-create
+          config:
+            # The Secret you create in step 1. The &snowCredentials name lets the other steps use the same lines
+            credentials: &snowCredentials
+              secretName: kargo-step-snow
+              type: TODO    # the Secret has a username and a password: which type of credentials is that?
+            tableName: change_request
+            template:
+              type: normal
+            parameters:
+              short_description: "Kargo workshop: release ${{ imageFrom(vars.image).Tag }} to production"
+              description: ${{ outputs.reason.values.reason }}
+              assignment_group: Application Development
+              impact: "3"
+              urgency: "3"
+        # 3. Wait until the change request is approved and ready to be implemented. The promotion stays Running meanwhile
+        - uses: snow-wait-for-condition
+          as: snow-wait
+          config:
+            credentials: *snowCredentials
+            tableName: change_request
+            ticketId: TODO    # the sys_id of the change request that snow-create made
+            condition: TODO    # field=value. Implement is state minus one: -1, with the minus sign
+            pollInterval: 15s
+        # 4. Get the GitOps repository
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # 5. Change the image tag of the three regions
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        # 6. Commit and push
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        - uses: git-push
+          config:
+            path: ./repo
+        # 7. Close the change request: it goes to Review (state 0), with a note
+        - uses: snow-update
+          as: snow-update
+          config:
+            credentials: *snowCredentials
+            tableName: change_request
+            ticketId: ${{ outputs['snow-create'].sys_id }}
+            parameters:
+              state: "0"
+              work_notes: "Kargo promoted ${{ imageFrom(vars.image).Tag }} to all the production regions (${{ ctx.promotion }})."
+        # 8. Write down what happened, with the number of the change request (Lab 9)
+        - uses: record-audit-event
+          as: audit
+          retry:
+            errorThreshold: 3
+          config:
+            type: approved
+            message: "Release ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }} approved in ServiceNow (${{ outputs['snow-create'].number }})."
+            data:
+              reason: ${{ outputs.reason.values.reason }}
+              change: ${{ outputs['snow-create'].number }}
