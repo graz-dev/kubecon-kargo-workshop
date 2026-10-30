@@ -22,8 +22,8 @@ At least 8 GB of memory for Docker, and 15 GB of free disk space.
 ## Start here
 
 1. Read [the guides](workshop/README.md). Start with [Before the workshop](workshop/00-before-the-workshop.md): it asks you to
-   run `make bootstrap` a few days before the event.
-2. On the day, follow [Your environment](workshop/01-your-environment.md), then the labs in order.
+   prepare your laptop and create your environment a few days before the event.
+2. On the day, follow [Your environment](workshop/01-your-environment.md): it takes about ten minutes. Then do the labs in order.
 
 `make help` lists every command.
 

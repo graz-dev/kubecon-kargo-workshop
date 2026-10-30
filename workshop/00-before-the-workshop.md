@@ -1,6 +1,9 @@
 # 00 - Before the workshop
 
-Do this a few days before, at home, on a good connection. It takes about 20 minutes, most of it downloading.
+Do this a few days before, at home, on a good connection. It takes about 40 minutes, most of it downloading and waiting.
+
+You will also create your own Argo CD and Kargo on the Akuity Platform, and your cluster. Doing it now means that, on the day, a hundred
+people do not wait for the platform at the same moment.
 
 You need a Mac or a Linux laptop (on Windows, use WSL2) with:
 
@@ -119,11 +122,109 @@ A line for each image it downloads, and at the end the same number twice:
 ```
 </details>
 
+## 5. Sign in to the Akuity Platform
+
+Run:
+
+```sh
+make login
+```
+
+<details>
+<summary>What it does</summary>
+
+Opens a sign-in with the Akuity CLI: it prints a link and a code. Open the link in your browser, enter the code and sign in.
+The session lasts about 12 hours.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+```
+Authenticated as <your name> (<your e-mail>)
+ ok  organization: <the organization>
+```
+</details>
+
+## 6. Create your cluster and your environment
+
+Run:
+
+```sh
+make up
+make seed
+```
+
+<details>
+<summary>What it does</summary>
+
+`make up` creates a Kubernetes cluster on your laptop, with a web entrance (Traefik) and local names such as `gitea.localtest.me`. Then it creates
+your Argo CD and your Kargo on the Akuity Platform, and installs their agents in your cluster. The agents connect out to the platform, so
+nothing on your laptop is opened to the network. It takes about 6 minutes the first time, and about 40 seconds if you run it again.
+
+`make seed` installs Gitea, a small Git server, inside your cluster, and puts in it the repository the workshop works on. It then creates five
+applications in Argo CD, one for each environment (`dev`, `staging` and three production regions), and a project called `guestbook`
+in Kargo. All five applications start on version `0.9.0`, the version that runs before Kargo. It takes about a minute.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+`make up` ends with your two addresses and your login:
+
+```
+The cluster is connected to the Akuity Platform.
+  Argo CD: https://<id>.cd.akuity.cloud
+  Kargo:   https://<id>.kargo.akuity.cloud
+  Log in with:  admin  /  <your password>
+```
+
+`make seed` ends with:
+
+```
+Seeded. Argo CD will create the five Applications; they run version 0.9.0.
+```
+</details>
+
+## 7. Check everything
+
+Run:
+
+```sh
+make check STEP=setup
+```
+
+<details>
+<summary>What it does</summary>
+
+Checks all of the above in one go: your cluster, Gitea, your Argo CD and Kargo, the connection between them, the Kargo project and the five
+applications. It changes nothing.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+Every line starts with `ok`, and the last line says:
+
+```
+All good.
+```
+
+A line starting with `FAIL` has an arrow under it saying what to do. Right after `make seed`, the applications may need a minute or two to become
+**Synced** and **Healthy**: if only those lines fail, wait a little and run the check again.
+
+You will open Argo CD, Kargo and the application on the day of the workshop.
+</details>
+
 ## Done
 
-Keep the folder as it is, and see you at the workshop.
+Your environment is ready. Keep the folder as it is, and see you at the workshop. On the day, [guide 01](01-your-environment.md) takes
+about ten minutes.
 
 ## Stuck?
 
-Run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
-**the address that `make bootstrap` prints** (it is `SUPPORT_CONTACT` in `workshop.env`). It has no passwords or tokens in it.
+- **Port 80 is in use:** set `HTTP_PORT=8080` in `workshop.env`, then run `make down` and `make up` again.
+- **"You are not logged in":** run `make login` again. The session lasts about 12 hours.
+- **A step stopped half way:** run the same command again. Every command is safe to repeat.
+- **Still stuck:** run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
+  **the address that `make bootstrap` prints** (it is `SUPPORT_CONTACT` in `workshop.env`). It has no passwords or tokens in it.
