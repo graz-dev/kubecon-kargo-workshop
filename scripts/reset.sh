@@ -35,7 +35,7 @@ cluster_exists || die "Cluster '$CLUSTER_NAME' does not exist. Run: make up"
 printf 'Reset will:\n'
 printf '  - delete and recreate %s/%s in Gitea (every stage back to %s, pull requests gone)\n' "$GITEA_ORG" "$GITEA_REPO" "$INITIAL_VERSION"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
-  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance, all the Freight, and turn the Promotion Controller off\n'
+  printf '  - remove the stages, warehouses, project configs, analysis templates, promotion tasks and custom steps of the Kargo instance, the credentials you created in the labs, all the Freight, and turn the Promotion Controller off\n'
 fi
 printf '  - set the release ceiling back to %s\n' "$FIRST_RELEASE"
 if [[ "$CONFIRM" != yes ]]; then
@@ -50,9 +50,9 @@ fi
 printf '%s' "$FIRST_RELEASE" >"$RELEASE_FILE"
 if [[ "${SKIP_PLATFORM:-0}" != 1 ]]; then
   apply_kargo_project yes
-  # The credentials of Labs 7, 11 and 12 are plain Secrets: the prune does not know them
+  # The credentials the labs ask for (Labs 7, 11 and 12) are plain Secrets: the prune does not know them
   kargo_login
-  for secret in inbox-credentials aws-creds kargo-step-snow; do
+  for secret in inbox-credentials smtp-credentials aws-creds kargo-step-snow; do
     kargo_cli delete generic-credentials --project "$KARGO_PROJECT" "$secret" >/dev/null 2>&1 || true
   done
   rm -f "$INBOX_FILE"

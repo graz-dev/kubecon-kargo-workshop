@@ -160,7 +160,7 @@ make seed
 
 `make up` creates a Kubernetes cluster on your laptop, with a web entrance (Traefik) and local names such as `gitea.localtest.me`. Then it creates
 your Argo CD and your Kargo on the Akuity Platform, and installs their agents in your cluster. The agents connect out to the platform, so
-nothing on your laptop is opened to the network. It takes about 6 minutes the first time, and about 40 seconds if you run it again.
+nothing on your laptop is opened to the network. It takes about 6 minutes the first time, and about a minute and a half if you run it again.
 
 `make seed` installs Gitea, a small Git server, inside your cluster, and puts in it the repository the workshop works on. It then creates five
 applications in Argo CD, one for each environment (`dev`, `staging` and three production regions), and a project called `guestbook`
