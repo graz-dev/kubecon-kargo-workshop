@@ -4,7 +4,7 @@ Follow the guides in order. Each one is a short list of steps.
 
 | Guide | When | What | Features |
 |---|---|---|---|
-| [00 - Before the workshop](00-before-the-workshop.md) | a few days before | Join the workshop on the Akuity Platform, get the project, prepare your laptop, and create your cluster and your environment | - |
+| [00 - Before the workshop](00-before-the-workshop.md) | a few days before | Get the project, create your organization on the Akuity Platform, prepare your laptop, and create your cluster and your environment | - |
 | [01 - Your environment](01-your-environment.md) | at the start of the workshop | Sign in again and check that your environment is still fine | - |
 | [Lab 1 - Your first promotion](lab-1/README.md) | after the setup | Send the first release to `dev` | Open source |
 | [Lab 2 - Build the pipeline](lab-2/README.md) | after Lab 1 | Add `staging`, let `dev` promote by itself | Open source |

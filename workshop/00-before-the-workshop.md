@@ -10,37 +10,15 @@ You need a Mac or a Linux laptop (on Windows, use WSL2) with:
 - **Docker** running: Docker Desktop, Colima, Rancher Desktop or Docker Engine. Give it at least **8 GB of memory**.
 - **git**, **make** and **curl**. On a Mac, `xcode-select --install` installs all three.
 - About **15 GB of free disk**.
-- A web browser, to sign in to the Akuity Platform. You create your account in step 1.
+- A web browser, to sign in to the Akuity Platform. You create your account and your organization in step 3.
 
-## 1. Join the workshop on the Akuity Platform
-
-In your browser, open https://training.akuity.cloud/ and sign in. Then join the organization **kubecon-na-workshop**. Do **not** create an
-organization of your own.
-
-<details>
-<summary>What it does</summary>
-
-https://training.akuity.cloud/ is the Akuity Platform we use in the workshop. The first time you sign in, it creates your account. Your Argo CD
-and your Kargo will live in the organization `kubecon-na-workshop`, next to those of the other attendees. The prefix you choose in step 3 keeps
-yours apart.
-
-You do this in the browser. `make login`, in step 6, signs in the command line later, with the same account.
-</details>
-
-<details>
-<summary>What you should see</summary>
-
-<!-- TODO(verify, add a screenshot): what the platform shows once you have joined the organization. -->
-You are signed in, and `kubecon-na-workshop` is the organization you work in.
-</details>
-
-## 2. Get the workshop
+## 1. Get the workshop
 
 Run:
 
 ```sh
-git clone <WORKSHOP_REPO_URL>
-cd <WORKSHOP_REPO_FOLDER>
+git clone https://github.com/graz-dev/kubecon-kargo-workshop
+cd kubecon-kargo-workshop
 ```
 
 <details>
@@ -55,7 +33,7 @@ Copies the workshop to your laptop. Everything you run during the workshop is in
 A new folder with files such as `Makefile` and `workshop.env.example`. You are now inside it.
 </details>
 
-## 3. Choose your prefix
+## 2. Choose your prefix
 
 Make your own copy of the settings, open it in an editor, and set your prefix. Use your first name or a handle, in lowercase:
 
@@ -72,8 +50,8 @@ WORKSHOP_PREFIX=anna
 <details>
 <summary>What it does</summary>
 
-Your Argo CD and Kargo will be called `anna-workshop`. Many people may share one Akuity organization, and the prefix keeps your
-things apart from everyone else's.
+Your Argo CD and Kargo will be called `anna-workshop`, and your organization on the platform (next step) starts with the same word. The prefix
+keeps your things apart from everyone else's.
 
 Allowed: lowercase letters, digits and hyphens, starting with a letter, up to 12 characters.
 </details>
@@ -81,7 +59,34 @@ Allowed: lowercase letters, digits and hyphens, starting with a letter, up to 12
 <details>
 <summary>What you should see</summary>
 
-Nothing yet. The next step checks it.
+Nothing yet. Step 4 checks it.
+</details>
+
+## 3. Create your account and your organization
+
+In your browser, open https://training.akuity.cloud/ and sign in. Then create **your own organization**. Its name is your `WORKSHOP_PREFIX`, then
+`kubecon-workshop`, then four random digits that you make up:
+
+```
+anna-kubecon-workshop-4821
+```
+
+If the platform shows an error, for example because the name is already taken, change the four digits and try again.
+
+<details>
+<summary>What it does</summary>
+
+https://training.akuity.cloud/ is the Akuity Platform we use in the workshop. The first time you sign in, it creates your account. Your Argo CD
+and your Kargo will live in your own organization, and in nobody else's. The four digits make it unlikely that two people choose the same name.
+
+You do this in the browser. `make login`, in step 6, signs in the command line later, with the same account.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+<!-- TODO(verify, add a screenshot): what the platform shows once the organization exists. -->
+You are signed in, and your organization, with the name you chose, is the one you work in.
 </details>
 
 ## 4. Prepare your laptop
@@ -156,7 +161,7 @@ make login
 <summary>What it does</summary>
 
 Opens a sign-in with the Akuity CLI: it prints a link and a code. Open the link in your browser, enter the code and sign in with the same
-account as in step 1. The session lasts about 12 hours.
+account as in step 3. The session lasts about 12 hours.
 </details>
 
 <details>
@@ -164,7 +169,7 @@ account as in step 1. The session lasts about 12 hours.
 
 ```
 Authenticated as <your name> (<your e-mail>)
- ok  organization: kubecon-na-workshop
+ ok  organization: anna-kubecon-workshop-4821
 ```
 </details>
 
@@ -246,7 +251,9 @@ about ten minutes.
 ## Stuck?
 
 - **Port 80 is in use:** set `HTTP_PORT=8080` in `workshop.env`, then run `make down` and `make up` again.
-- **You cannot join `kubecon-na-workshop`:** do not create an organization of your own. Send us the e-mail address you signed in with.
+- **The platform says the name of your organization is taken:** change the four digits and try again. Then write the new name in `workshop.env`.
+- **`make login` says your account has no organization named …, or belongs to several:** the name in `AKUITY_ORGANIZATION` in `workshop.env`
+  must be exactly the name of the organization you created in step 3.
 - **"You are not logged in":** run `make login` again. The session lasts about 12 hours.
 - **A step stopped half way:** run the same command again. Every command is safe to repeat.
 - **Still stuck:** run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
