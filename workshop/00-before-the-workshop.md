@@ -10,9 +10,31 @@ You need a Mac or a Linux laptop (on Windows, use WSL2) with:
 - **Docker** running: Docker Desktop, Colima, Rancher Desktop or Docker Engine. Give it at least **8 GB of memory**.
 - **git**, **make** and **curl**. On a Mac, `xcode-select --install` installs all three.
 - About **15 GB of free disk**.
-- An **Akuity Platform account**. <!-- TODO(organizers): say how attendees get access (invitation e-mail, card, ...). -->
+- A web browser, to sign in to the Akuity Platform. You create your account in step 1.
 
-## 1. Get the workshop
+## 1. Join the workshop on the Akuity Platform
+
+In your browser, open https://training.akuity.cloud/ and sign in. Then join the organization **kubecon-na-workshop**. Do **not** create an
+organization of your own.
+
+<details>
+<summary>What it does</summary>
+
+https://training.akuity.cloud/ is the Akuity Platform we use in the workshop. The first time you sign in, it creates your account. Your Argo CD
+and your Kargo will live in the organization `kubecon-na-workshop`, next to those of the other attendees. The prefix you choose in step 3 keeps
+yours apart.
+
+You do this in the browser. `make login`, in step 6, signs in the command line later, with the same account.
+</details>
+
+<details>
+<summary>What you should see</summary>
+
+<!-- TODO(verify, add a screenshot): what the platform shows once you have joined the organization. -->
+You are signed in, and `kubecon-na-workshop` is the organization you work in.
+</details>
+
+## 2. Get the workshop
 
 Run:
 
@@ -33,7 +55,7 @@ Copies the workshop to your laptop. Everything you run during the workshop is in
 A new folder with files such as `Makefile` and `workshop.env.example`. You are now inside it.
 </details>
 
-## 2. Choose your prefix
+## 3. Choose your prefix
 
 Make your own copy of the settings, open it in an editor, and set your prefix. Use your first name or a handle, in lowercase:
 
@@ -62,7 +84,7 @@ Allowed: lowercase letters, digits and hyphens, starting with a letter, up to 12
 Nothing yet. The next step checks it.
 </details>
 
-## 3. Prepare your laptop
+## 4. Prepare your laptop
 
 Run:
 
@@ -98,7 +120,7 @@ If something is wrong, it lists what, for example `Docker memory`, `port 80` or 
 It is safe to run as many times as you like.
 </details>
 
-## 4. Download the images (recommended)
+## 5. Download the images (recommended)
 
 Run:
 
@@ -122,7 +144,7 @@ A line for each image it downloads, and at the end the same number twice:
 ```
 </details>
 
-## 5. Sign in to the Akuity Platform
+## 6. Sign in to the Akuity Platform from the command line
 
 Run:
 
@@ -133,8 +155,8 @@ make login
 <details>
 <summary>What it does</summary>
 
-Opens a sign-in with the Akuity CLI: it prints a link and a code. Open the link in your browser, enter the code and sign in.
-The session lasts about 12 hours.
+Opens a sign-in with the Akuity CLI: it prints a link and a code. Open the link in your browser, enter the code and sign in with the same
+account as in step 1. The session lasts about 12 hours.
 </details>
 
 <details>
@@ -142,11 +164,11 @@ The session lasts about 12 hours.
 
 ```
 Authenticated as <your name> (<your e-mail>)
- ok  organization: <the organization>
+ ok  organization: kubecon-na-workshop
 ```
 </details>
 
-## 6. Create your cluster and your environment
+## 7. Create your cluster and your environment
 
 Run:
 
@@ -186,7 +208,7 @@ Seeded. Argo CD will create the five Applications; they run version 0.9.0.
 ```
 </details>
 
-## 7. Check everything
+## 8. Check everything
 
 Run:
 
@@ -224,6 +246,7 @@ about ten minutes.
 ## Stuck?
 
 - **Port 80 is in use:** set `HTTP_PORT=8080` in `workshop.env`, then run `make down` and `make up` again.
+- **You cannot join `kubecon-na-workshop`:** do not create an organization of your own. Send us the e-mail address you signed in with.
 - **"You are not logged in":** run `make login` again. The session lasts about 12 hours.
 - **A step stopped half way:** run the same command again. Every command is safe to repeat.
 - **Still stuck:** run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
