@@ -5,7 +5,7 @@
 #   scripts/doctor.sh [--skip-images]
 #
 # DOCTOR_REPORT_FILE=<path> also writes a plain-text copy of every line (used by `make bootstrap`).
-# Thresholds are provisional until the resource budget is measured.
+# The thresholds come from `make measure` on a complete environment (all the labs done): see the README.
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -70,6 +70,21 @@ check_host() {
     row FAIL "host commands" "missing:$missing"
   else
     row OK "host commands" "git make bash curl"
+  fi
+  check_files
+}
+
+# A clone made with Windows line endings breaks every script; on WSL, a folder on the Windows disk is slow and loses permissions
+check_files() {
+  local crlf
+  crlf="$(grep -l $'\r' "$ROOT_DIR"/scripts/*.sh "$ROOT_DIR"/scripts/lib/*.sh "$ROOT_DIR"/Makefile 2>/dev/null | head -1 || true)"
+  if [[ -n "$crlf" ]]; then
+    row FAIL "line endings" "${crlf#"$ROOT_DIR"/} has Windows line endings. Clone again inside WSL, or run: git config --global core.autocrlf false, then clone again"
+  else
+    row OK "line endings" "Unix"
+  fi
+  if grep -qi microsoft /proc/version 2>/dev/null && [[ "$ROOT_DIR" == /mnt/* ]]; then
+    row WARN "folder" "$ROOT_DIR is on the Windows disk: it is slow and loses file permissions. Clone it in your Linux home instead"
   fi
 }
 
@@ -223,6 +238,13 @@ check_internet() {
   probe_row "docker.gitea.com" "https://docker.gitea.com/v2/" WARN "the Gitea image"
   probe_row "dl.akuity.io" "https://dl.akuity.io" WARN "downloading the akuity CLI"
   probe_row "github.com" "https://github.com" WARN "downloading the kargo and crane CLIs"
+  # What the later labs download while they run: better to know now than in the middle of a lab
+  probe_row "mirror.gcr.io" "https://mirror.gcr.io/v2/" WARN "the Trivy vulnerability database (Lab 10)"
+  probe_row "webhook.site" "https://webhook.site" WARN "the inbox that receives the notifications (Lab 7)"
+  probe_row "registry.opentofu.org" "https://registry.opentofu.org/.well-known/terraform.json" WARN "the OpenTofu providers (Lab 11)"
+  probe_row "lambda.${AWS_REGION:-us-east-1}.amazonaws.com" "https://lambda.${AWS_REGION:-us-east-1}.amazonaws.com/" WARN "AWS Lambda (Lab 11)"
+  probe_row "s3.${AWS_REGION:-us-east-1}.amazonaws.com" "https://s3.${AWS_REGION:-us-east-1}.amazonaws.com/" WARN "the Terraform state on AWS S3 (Lab 11)"
+  probe_row "service-now.com" "https://service-now.com" WARN "ServiceNow (Lab 12)"
 
   for var in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
     if [[ -n "${!var:-}" ]]; then

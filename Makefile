@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit promotion-controller aws-teardown prefetch lint
+.PHONY: help bootstrap tools doctor login up down platform-down reset urls status seed release catchup check freight audit promotion-controller aws-teardown prefetch measure lint
 
 # stub <target> <planned phase>
 define stub
@@ -76,6 +76,9 @@ freight: ## List the Freight with its version and where it is now (to find the a
 
 prefetch: ## Pull every image the workshop needs, so a later make up needs little or no network
 	@scripts/prefetch.sh
+
+measure: ## For the maintainers: how much memory, CPU and disk the environment uses (read-only). make measure WATCH=120 also samples for 120 seconds
+	@scripts/measure.sh $(if $(WATCH),watch $(WATCH))
 
 lint: ## Syntax-check the scripts (bash -n) and run shellcheck/yamllint when installed
 	@scripts/lint.sh

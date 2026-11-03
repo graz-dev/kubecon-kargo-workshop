@@ -51,12 +51,46 @@ if [[ "$CONFIRM" != yes ]]; then
   exit 0
 fi
 
+# The platform deletes an instance in the background. Argo CD cannot go while the Kargo agent linked to it still exists, so wait for
+# the Kargo instance to disappear, and try the deletion again for about two minutes when the platform still sees an agent.
+delete_instance() { # <kind> <name>
+  local kind="$1" name="$2" out
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    if out="$(ak "$kind" instance delete "$name" 2>&1)"; then
+      printf '%s\n' "$out"
+      ok "deleted the $kind instance $name"
+      return 0
+    fi
+    case "$out" in
+      *"connected kargo agents"* | *"connected agents"*)
+        info "the platform still sees an agent of $name: trying again in 10 seconds"
+        sleep 10
+        ;;
+      *)
+        printf '%s\n' "$out" >&2
+        return 1
+        ;;
+    esac
+  done
+  printf '%s\n' "$out" >&2
+  return 1
+}
+
+wait_gone() { # <kind> <name>
+  local kind="$1" name="$2"
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
+    [[ -n "$(health_of "$kind" "$name")" ]] || return 0
+    sleep 10
+  done
+  warn "the $kind instance $name is still on the platform after three minutes"
+}
+
 printf '\n'
 for pair in "kargo:$AKUITY_KARGO_INSTANCE" "argocd:$AKUITY_ARGOCD_INSTANCE"; do
   kind="${pair%%:*}"
   name="${pair#*:}"
   if [[ -n "$(health_of "$kind" "$name")" ]]; then
-    ak "$kind" instance delete "$name"
-    ok "deleted the $kind instance $name"
+    delete_instance "$kind" "$name"
+    wait_gone "$kind" "$name"
   fi
 done

@@ -17,7 +17,9 @@ how to add checks, rollbacks and approvals along the way.
 Docker, `git`, `make`, `bash`, `curl`, internet access, and an Akuity Platform account. The other tools (kind, kubectl, helm, kargo,
 akuity) are downloaded into `.tools/` for you. Nothing is installed on your system.
 
-At least 8 GB of memory for Docker, and 15 GB of free disk space.
+At least 8 GB of memory for Docker, 4 CPUs and 15 GB of free disk space. Measured on a finished workshop: the cluster uses about
+3 GB of memory (3.5 GB at its busiest, while a promotion scans an image and applies Terraform), up to two CPU cores for a minute, and the
+images and the cluster take about 11 GB of disk.
 
 ## Start here
 

@@ -5,7 +5,8 @@
 #   scripts/prefetch.sh [pull|load|all]    pull: docker pull everything · load: kind load what is already pulled · all (default): both
 #
 # The list: manifests/prefetch-images.txt, the helper images of versions.env, every guestbook version of the
-# catalog, and .tools/images-seen.txt (what the last `make up` really used, agents included).
+# catalog, and .tools/images-seen.txt (what the last `make up` really used, agents included). The image of the kind node
+# (KIND_NODE_IMAGE, over 1 GB) is pulled too, because `make up` needs it, but it is not loaded into the cluster: it is the cluster.
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -42,7 +43,7 @@ if [[ "$MODE" == pull || "$MODE" == all ]]; then
       failed=$((failed + 1))
       warn "could not pull $img"
     fi
-  done < <(images)
+  done < <({ images; printf '%s\n' "$KIND_NODE_IMAGE"; } | sort -u)
   info "$pulled of $total images are on this machine ($failed could not be pulled)"
 fi
 
