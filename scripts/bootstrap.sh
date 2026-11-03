@@ -3,7 +3,7 @@
 #   1. downloads every pinned CLI into ./.tools/bin (one at a time, so one failure does not stop the rest)
 #   2. runs the doctor checks
 #   3. writes a plain-text report (.tools/bootstrap-report.txt) to send to the organizers if something is wrong.
-# The report holds no passwords or tokens; your home directory and user name are masked.
+# The report holds no passwords or tokens; your home directory is masked.
 #
 #   scripts/bootstrap.sh
 #
@@ -108,14 +108,16 @@ DOCTOR_RC=$?
   fi
 } >"$WORK/report.txt"
 
-# Mask the home directory and the user name before the report can be shared
+# Mask the home directory before the report can be shared, and the user name where it is a folder of a path. The user name is not
+# masked anywhere else: it can be the same word as the prefix or part of the e-mail, and masking those only makes the report harder to read.
 # (replacements go through variables: bash 3.2 keeps literal quotes in a quoted replacement)
 text="$(cat "$WORK/report.txt")"
 tilde='~'
-user_mask='<user>'
+user_dir='/<user>/'
 text="${text//"$HOME"/$tilde}"
 if [[ -n "${USER:-}" && ${#USER} -ge 3 ]]; then
-  text="${text//"$USER"/$user_mask}"
+  user_path="/$USER/"
+  text="${text//"$user_path"/$user_dir}"
 fi
 printf '%s\n' "$text" >"$REPORT"
 

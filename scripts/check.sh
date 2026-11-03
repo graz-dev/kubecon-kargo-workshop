@@ -64,13 +64,13 @@ check_setup() {
   fi
   require_prefix
   org="$(akuity_org)"
-  h="$(akuity argocd instance list --server "$AKUITY_SERVER_URL" --organization-name "$org" | health_in "$AKUITY_ARGOCD_INSTANCE")"
+  h="$(akuity argocd instance list --server "$AKUITY_SERVER_URL" --organization-name "$org" | health_in "$AKUITY_ARGOCD_INSTANCE")" || true
   if [[ "$h" == Healthy ]]; then good "Argo CD instance $AKUITY_ARGOCD_INSTANCE is Healthy"; else bad "Argo CD instance $AKUITY_ARGOCD_INSTANCE is '${h:-missing}'" "run: make up"; fi
-  h="$(akuity argocd cluster list --instance-name "$AKUITY_ARGOCD_INSTANCE" --server "$AKUITY_SERVER_URL" --organization-name "$org" 2>/dev/null | health_in "$CLUSTER_NAME")"
+  h="$(akuity argocd cluster list --instance-name "$AKUITY_ARGOCD_INSTANCE" --server "$AKUITY_SERVER_URL" --organization-name "$org" 2>/dev/null | health_in "$CLUSTER_NAME")" || true
   if [[ "$h" == Healthy ]]; then good "your cluster is connected to Argo CD and Healthy"; else bad "your cluster is '${h:-not connected}' in Argo CD" "run: make up"; fi
-  h="$(akuity kargo instance list --server "$AKUITY_SERVER_URL" --organization-name "$org" | health_in "$AKUITY_KARGO_INSTANCE")"
+  h="$(akuity kargo instance list --server "$AKUITY_SERVER_URL" --organization-name "$org" | health_in "$AKUITY_KARGO_INSTANCE")" || true
   if [[ "$h" == Healthy ]]; then good "Kargo instance $AKUITY_KARGO_INSTANCE is Healthy"; else bad "Kargo instance $AKUITY_KARGO_INSTANCE is '${h:-missing}'" "run: make up"; fi
-  h="$(akuity kargo agent list --instance-name "$AKUITY_KARGO_INSTANCE" --server "$AKUITY_SERVER_URL" --organization-name "$org" 2>/dev/null | health_in "$CLUSTER_NAME")"
+  h="$(akuity kargo agent list --instance-name "$AKUITY_KARGO_INSTANCE" --server "$AKUITY_SERVER_URL" --organization-name "$org" 2>/dev/null | health_in "$CLUSTER_NAME")" || true
   if [[ "$h" == Healthy ]]; then good "the Kargo agent in your cluster is Healthy"; else bad "the Kargo agent is '${h:-missing}'" "run: make up"; fi
 
   section "Kargo project"
@@ -92,7 +92,7 @@ check_setup() {
 
   section "The five applications"
   for stage in $STAGES; do
-    url="$(service_url "guestbook-$stage")"
+    url="$(service_url "guestbook-$stage")" || true
     ver=""
     code="$(curl -s -m 8 -o "$TOOLS_DIR/.page" -w '%{http_code}' --resolve "$(service_host "guestbook-$stage"):${HTTP_PORT}:127.0.0.1" "$url/" 2>/dev/null || true)"
     [[ "$code" != 200 ]] || ver="$(sed -n 's/.*id="version">\([^<]*\)<.*/\1/p' "$TOOLS_DIR/.page" | head -1)"
@@ -167,7 +167,7 @@ check_lab1() {
   fi
 
   section "Git and the applications"
-  tag="$(repo_tag dev)"
+  tag="$(repo_tag dev)" || true
   if [[ "$tag" == "1.0.0" ]]; then good "Git: env/dev/k8s/values.yaml has image tag 1.0.0"; else bad "Git: the dev values file has tag '${tag:-?}', not 1.0.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
   commit="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/commits?limit=1" 2>/dev/null | tr -d ' \n' || true)"
   if grep -q '"name":"kargo-bot"' <<<"$commit"; then
@@ -175,9 +175,9 @@ check_lab1() {
   else
     bad "Git: the latest commit was not made by kargo-bot" "a promotion makes it: check that git-commit and git-push ran"
   fi
-  tag="$(stage_version dev)"
+  tag="$(stage_version dev)" || true
   if [[ "$tag" == "1.0.0" ]]; then good "dev runs 1.0.0 at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not 1.0.0" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
-  tag="$(stage_version staging)"
+  tag="$(stage_version staging)" || true
   if [[ "$tag" == "0.9.0" ]]; then good "staging still runs 0.9.0: nothing moved past dev"; else bad "staging runs '${tag:-nothing}'" "in this lab only dev should change"; fi
 }
 
@@ -219,12 +219,12 @@ check_lab2() {
 
   section "Git and the applications"
   for stage in dev staging; do
-    tag="$(repo_tag "$stage")"
+    tag="$(repo_tag "$stage")" || true
     if [[ "$tag" == "1.1.0" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag 1.1.0"; else bad "Git: the $stage values file has tag '${tag:-?}', not 1.1.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
-    tag="$(stage_version "$stage")"
+    tag="$(stage_version "$stage")" || true
     if [[ "$tag" == "1.1.0" ]]; then good "$stage runs 1.1.0 at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not 1.1.0" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
   done
-  tag="$(stage_version prod-amer-east)"
+  tag="$(stage_version prod-amer-east)" || true
   if [[ "$tag" == "0.9.0" ]]; then good "production still runs 0.9.0: nothing moved past staging"; else bad "production runs '${tag:-nothing}'" "in this lab only dev and staging should change"; fi
 }
 
@@ -266,9 +266,9 @@ check_lab3() {
 
   section "Git and the applications"
   for stage in staging prod-amer-east prod-amer-west prod-emea; do
-    tag="$(repo_tag "$stage")"
+    tag="$(repo_tag "$stage")" || true
     if [[ "$tag" == "1.2.0" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag 1.2.0"; else bad "Git: the $stage values file has tag '${tag:-?}', not 1.2.0" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
-    tag="$(stage_version "$stage")"
+    tag="$(stage_version "$stage")" || true
     if [[ "$tag" == "1.2.0" ]]; then good "$stage runs 1.2.0 at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not 1.2.0" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
   done
 }
@@ -319,12 +319,12 @@ check_lab4() {
   fi
 
   section "Git and the applications"
-  tag="$(repo_tag dev)"
+  tag="$(repo_tag dev)" || true
   if [[ "$tag" == "1.3.1" ]]; then good "Git: env/dev/k8s/values.yaml has image tag 1.3.1"; else bad "Git: the dev values file has tag '${tag:-?}', not 1.3.1" "the last promotion has not finished or has failed: look at its steps in Kargo"; fi
-  tag="$(stage_version dev)"
+  tag="$(stage_version dev)" || true
   if [[ "$tag" == "1.3.1" ]]; then good "dev runs 1.3.1 at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not 1.3.1" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
   for stage in staging prod-emea; do
-    tag="$(repo_tag "$stage")"
+    tag="$(repo_tag "$stage")" || true
     if [[ "$tag" == "1.2.0" ]]; then good "$stage still runs 1.2.0: the bad release never got past dev"; else bad "$stage has '${tag:-?}', not 1.2.0" "in this lab only dev should change"; fi
   done
 }
@@ -368,11 +368,11 @@ check_lab5() {
   fi
 
   section "Git and the applications"
-  tag="$(repo_tag staging)"
+  tag="$(repo_tag staging)" || true
   if [[ "$tag" == "1.3.1" ]]; then good "Git: env/staging/k8s/values.yaml has image tag 1.3.1"; else bad "Git: the staging values file has tag '${tag:-?}', not 1.3.1" "the pull request is not merged yet, or the promotion failed: look at it in Kargo"; fi
-  tag="$(stage_version staging)"
+  tag="$(stage_version staging)" || true
   if [[ "$tag" == "1.3.1" ]]; then good "staging runs 1.3.1 at $(service_url guestbook-staging)"; else bad "staging runs '${tag:-nothing}', not 1.3.1" "give Argo CD a minute, or check that the application guestbook-staging is Synced"; fi
-  tag="$(repo_tag prod-emea)"
+  tag="$(repo_tag prod-emea)" || true
   if [[ "$tag" == "1.2.0" ]]; then good "production still runs 1.2.0: nothing moved past staging"; else bad "production has '${tag:-?}', not 1.2.0" "in this lab only staging should change"; fi
 }
 
@@ -389,7 +389,7 @@ check_lab6() {
     bad "the Warehouse does not use NewestBuild" "apply yours: kargo apply -f work/lab-6/warehouse.yaml"
   fi
   check_todos 6
-  version="$(newest_freight_tag)"
+  version="$(newest_freight_tag)" || true
   if [[ -n "$version" && "$version" != 1.3.1 && "$(printf '%s\n%s\n' 1.3.1 "$version" | sort -V | tail -1)" == "$version" ]]; then
     good "Kargo found a release newer than 1.3.1: $version"
   else
@@ -419,9 +419,9 @@ check_lab6() {
 
   section "Git and the applications"
   for stage in dev staging prod-amer-east prod-amer-west prod-emea; do
-    tag="$(repo_tag "$stage")"
+    tag="$(repo_tag "$stage")" || true
     if [[ "$tag" == "$version" ]]; then good "Git: env/$stage/k8s/values.yaml has image tag $version"; else bad "Git: the $stage values file has tag '${tag:-?}', not $version" "the promotion has not finished or has failed: look at its steps in Kargo"; fi
-    tag="$(stage_version "$stage")"
+    tag="$(stage_version "$stage")" || true
     if [[ "$tag" == "$version" ]]; then good "$stage runs $version at $(service_url "guestbook-$stage")"; else bad "$stage runs '${tag:-nothing}', not $version" "give Argo CD a minute, or check that the application guestbook-$stage is Synced"; fi
   done
 }
@@ -441,13 +441,13 @@ check_lab7() {
   check_todos 7
 
   section "The inbox"
-  id="$(inbox_uuid)"
+  id="$(inbox_uuid)" || true
   if [[ -z "$id" ]]; then
     bad "I cannot find your inbox" "put its address in work/lab-7/message-channel.yaml (the line url:), then apply the file"
     return 0
   fi
   good "your inbox is https://webhook.site/#!/view/$id"
-  content="$(inbox_content "$id")"
+  content="$(inbox_content "$id")" || true
   if grep -q 'PromotionSucceeded' <<<"$content"; then
     good "the inbox received a message for a promotion that succeeded"
   else
@@ -491,10 +491,10 @@ check_lab8() {
   fi
 
   section "Git and the applications"
-  version="$(newest_freight_tag)"
-  tag="$(repo_tag dev)"
+  version="$(newest_freight_tag)" || true
+  tag="$(repo_tag dev)" || true
   if [[ -n "$version" && "$tag" == "$version" ]]; then good "Git: env/dev/k8s/values.yaml has image tag $version, the newest"; else bad "Git: the dev values file has tag '${tag:-?}', not the newest ($version)" "the rollback has not finished: look at the Promotions of dev"; fi
-  tag="$(stage_version dev)"
+  tag="$(stage_version dev)" || true
   if [[ -n "$version" && "$tag" == "$version" ]]; then good "dev runs $version at $(service_url guestbook-dev)"; else bad "dev runs '${tag:-nothing}', not $version" "give Argo CD a minute, or check that the application guestbook-dev is Synced"; fi
 }
 
@@ -595,7 +595,7 @@ check_lab11() {
   fi
 
   section "Git, the Lambda and the application"
-  url="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/raw/env/dev/k8s/values.yaml" 2>/dev/null | sed -n 's/^ *LAMBDA_URL: *"\{0,1\}\([^" ]*\)"\{0,1\}.*/\1/p' | head -1)"
+  url="$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/raw/env/dev/k8s/values.yaml" 2>/dev/null | sed -n 's/^ *LAMBDA_URL: *"\{0,1\}\([^" ]*\)"\{0,1\}.*/\1/p' | head -1)" || true
   if [[ "$url" == https://*lambda-url* ]]; then
     good "Git: env/dev/k8s/values.yaml has the URL of the Lambda"
   else
