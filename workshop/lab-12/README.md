@@ -210,6 +210,8 @@ make catchup STEP=12
   for example `does not yet meet condition: state=1`. The condition must be `state=-1`, with the minus sign. Fix your file and apply it.
   A Promotion keeps the steps it started with, so abort the stuck one: `kargo promote --project guestbook --name <name of the Promotion> --abort`.
   Then promote again, answer the form, and ask the instructor to approve the new change request.
+- **`make catchup` stops with `No host part in the URL`:** if you set `XDG_CONFIG_HOME`, run `unset XDG_CONFIG_HOME` in this terminal and try
+  again (guide 01, step 5).
 - **Kargo asks for a reason again:** every promotion of `prod` asks. Answer the form.
 - **`make check` says a `TODO` is left:** it tells you the line.
 - **Kargo refuses the file:** compare it with the example above. Indentation matters in YAML.

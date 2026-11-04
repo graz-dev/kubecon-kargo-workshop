@@ -228,6 +228,8 @@ make catchup STEP=9
 - **The promotion stays Running:** it is waiting for you. Open it in the Kargo UI, answer the form, and approve.
 - **There is no form in the Kargo UI:** check that you applied `work/lab-9/stage-prod.yaml`, and that you promoted after that.
 - **The last step fails:** look at the steps of the promotion in Kargo. The names of the steps must be `approve` and `reason`.
+- **`make audit` prints `No host part in the URL`, or says there are no events, and the promotion did finish:** if you set `XDG_CONFIG_HOME`,
+  run `unset XDG_CONFIG_HOME` in this terminal and try again (guide 01, step 5).
 - **`make audit` says there are no events:** the promotion did not reach its last step. Wait for it to succeed.
 - **`make check` says a `TODO` is left:** it tells you the line.
 - **Kargo refuses a file:** compare it with the example above. Indentation matters in YAML.

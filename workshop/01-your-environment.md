@@ -102,8 +102,15 @@ If you use another port than 80, add it to the address, for example `http://gite
 
 ## 5. Log in to the Kargo CLI
 
-The labs use the `kargo` command. Put your tools on your path, then log in. `make urls` prints both lines for you, with your address and
-password filled in:
+The labs use the `kargo` command. On Linux, check one thing first: run `echo "$XDG_CONFIG_HOME"`. If it prints a folder, run
+`unset XDG_CONFIG_HOME` in this terminal, and in every terminal you use for the workshop.
+
+```sh
+echo "$XDG_CONFIG_HOME"
+unset XDG_CONFIG_HOME
+```
+
+Then put your tools on your path and log in. `make urls` prints both lines for you, with your address and password filled in:
 
 ```sh
 export PATH="$PWD/.tools/bin:$PATH"
@@ -116,6 +123,10 @@ kargo get projects
 
 The first line lets your terminal find the tools we downloaded for you, in this terminal window only. The second signs the `kargo`
 command in to your Kargo, as the `admin` account. The third lists the projects you can see.
+
+Some Linux setups set `XDG_CONFIG_HOME`, which changes the place where `kargo` keeps its login. The workshop commands, such as `make audit` and
+`make catchup`, keep theirs in the project folder and would not find it. `unset` removes the variable in the terminal where you run it, not
+for good: a new terminal has it again, so run it there too. If it printed nothing, there is nothing to do.
 </details>
 
 <details>
