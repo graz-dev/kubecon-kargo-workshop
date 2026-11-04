@@ -102,7 +102,8 @@ make bootstrap
 
 Downloads the small tools the workshop uses (`kind`, `kubectl`, `helm`, `kargo`, `akuity`, `crane`) into a folder inside the project.
 Nothing is installed on your system. Then it checks Docker, memory, disk, your prefix and your connection to the services we use,
-and writes a short report you can send us.
+and writes a short report by itself, in `.tools/bootstrap-report.txt`, every time you run it. You only need the report if something is wrong:
+then you send it to us (see Stuck? at the end). It has no passwords or tokens in it.
 </details>
 
 <details>
@@ -122,7 +123,7 @@ export PATH="$PWD/.tools/bin:$PATH"
 ```
 
 If something is wrong, it lists what, for example `Docker memory`, `port 80` or `WORKSHOP_PREFIX`. Fix it and run the command again.
-It is safe to run as many times as you like.
+It is safe to run as many times as you like. If you cannot fix it, send us the report (see Stuck? at the end).
 </details>
 
 ## 5. Download the images (recommended)
@@ -245,8 +246,8 @@ You will open Argo CD, Kargo and the application on the day of the workshop.
 
 ## Done
 
-Your environment is ready. Keep the folder as it is, and see you at the workshop. On the day, [guide 01](01-your-environment.md) takes
-about ten minutes.
+You are ready when `make check STEP=setup` (step 8) says `All good.` Keep the folder as it is, and see you at the workshop. On the day,
+[guide 01](01-your-environment.md) takes about ten minutes.
 
 ## Stuck?
 
@@ -256,5 +257,8 @@ about ten minutes.
   must be exactly the name of the organization you created in step 3.
 - **"You are not logged in":** run `make login` again. The session lasts about 12 hours.
 - **A step stopped half way:** run the same command again. Every command is safe to repeat.
-- **Still stuck:** run `make bootstrap` again. If it still reports a problem you cannot fix, send the file `.tools/bootstrap-report.txt` to
-  **the address that `make bootstrap` prints** (it is `SUPPORT_CONTACT` in `workshop.env`). It has no passwords or tokens in it.
+- **Still stuck:** run `make bootstrap` again. It writes the report `.tools/bootstrap-report.txt` by itself. If it still reports a problem
+  you cannot fix, send that file to **marketing-team@akuity.io**. It has no passwords or tokens in it.
+- **Anything else, or you cannot even get started:** write to **marketing-team@akuity.io** at any moment, at any step. You do not need a
+  report. It can be that you cannot sign in, cannot clone the project, or `make bootstrap` does not start. Tell us the step number and what
+  you see, and we will help you.
