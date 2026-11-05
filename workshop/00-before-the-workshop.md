@@ -1,6 +1,8 @@
 # 00 - Before the workshop
 
-Do this a few days before, at home, on a good connection. It takes about 40 minutes, most of it downloading and waiting.
+**First, please fill in the [pre-workshop survey](https://docs.google.com/forms/d/e/1FAIpQLSfDFXU5C52IGLhklu1Ixu1GcCSi3oI8_T26wDZZh6LEnDxIWg/viewform).** It helps us prepare the workshop for you.
+
+Then do this a few days before, at home, on a good connection. It takes about 40 minutes, most of it downloading and waiting.
 
 You will also create your own Argo CD and Kargo on the Akuity Platform, and your cluster. Doing it now means that, on the day, a hundred
 people do not wait for the platform at the same moment.
