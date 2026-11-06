@@ -9,7 +9,7 @@ You work with the **Kargo CLI** and with **Gitea** in your browser, as in Lab 5.
 Before you start, finish Lab 5. `make check STEP=5` should say `All good.` If it does not, run `make catchup STEP=5`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - An **image selection strategy** is the rule a Warehouse uses to choose *the* image among all the tags it sees. Until now we used
   `SemVer`: the highest version in a range, with a fence at the top. `NewestBuild` chooses the image that was **built most recently**.

@@ -8,7 +8,7 @@ You still work with the **Kargo CLI**, and the Kargo UI shows the result.
 Before you start, finish Lab 2. `make check STEP=2` should say `All good.` If it does not, run `make catchup STEP=2`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - A **fan-out** is one Stage that feeds several Stages after it. Here `prod` feeds three regions.
 - **Following** a Stage (`MatchUpstream`) means a Stage takes exactly the Freight that the Stage before it has now, and not the newest one.

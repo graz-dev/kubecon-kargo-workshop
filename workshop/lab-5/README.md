@@ -8,7 +8,7 @@ You work with the **Kargo CLI**, and with **Gitea** in your browser: this is whe
 Before you start, finish Lab 4. `make check STEP=4` should say `All good.` If it does not, run `make catchup STEP=4`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - A **pull request** (PR) asks to merge one Git branch into another, and gives people a place to review the change first.
 - With a PR as approval, Kargo does not push to `main`. It pushes to a **new branch**, opens the PR, and **waits**. Nothing reaches

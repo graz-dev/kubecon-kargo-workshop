@@ -8,7 +8,7 @@ This lab uses **Kargo Enterprise** features: notifications are part of Kargo on 
 Before you start, finish Lab 6. `make check STEP=6` should say `All good.` If it does not, run `make catchup STEP=6`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - An **event** is something Kargo says it did: a promotion was created, succeeded, failed.
 - A **MessageChannel** is a place where messages can go: a Slack channel, an email address, a web address. It holds the connection, not the

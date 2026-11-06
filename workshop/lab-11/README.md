@@ -8,7 +8,7 @@ This lab uses **Kargo Enterprise** features. The Terraform steps are marked **Be
 Before you start, finish Lab 10: the Promotion Controller must be on. `make check STEP=10` should say `All good.` If it does not, run
 `make catchup STEP=10`. In a new terminal, run `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - **Terraform** (here **OpenTofu**, its open-source twin) describes infrastructure in files, and `apply` makes the real world match them.
 - A **Lambda** is a function that AWS runs for you. A **Function URL** gives it a public web address.

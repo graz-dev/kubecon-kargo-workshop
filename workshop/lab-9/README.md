@@ -11,7 +11,7 @@ Compare with Lab 5: there, a merged pull request was the approval, and Kargo did
 Before you start, finish Lab 8. `make check STEP=8` should say `All good.` If it does not, run `make catchup STEP=8`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - A **promotion window** says when promotions are allowed or forbidden for a Stage. A **Deny** window is a freeze. A freeze wins over
   everything else, and it blocks promotions by hand, automatic promotions and automatic rollbacks.

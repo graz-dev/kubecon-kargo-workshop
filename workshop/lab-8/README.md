@@ -8,7 +8,7 @@ This lab uses **Kargo Enterprise** features: automatic rollback is part of Kargo
 Before you start, finish Lab 7. `make check STEP=7` should say `All good.` If it does not, run `make catchup STEP=7`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - The **stable Freight** of a Stage is the last piece of Freight that passed its check there. Kargo remembers it for every Stage.
 - An **automatic rollback** is a Promotion that Kargo creates by itself, when the check of a new Freight fails, to put the stable Freight

@@ -8,7 +8,7 @@ You still work with the **Kargo CLI**. This time the Kargo UI is worth a look to
 Before you start, finish Lab 1. `make check STEP=1` should say `All good.` If it does not, run `make catchup STEP=1`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - A **pipeline** is a row of Stages. Freight goes through them in order: a Stage only takes Freight that has already been in the Stage
   before it.

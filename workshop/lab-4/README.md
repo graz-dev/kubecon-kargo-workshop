@@ -8,7 +8,7 @@ You work with the **Kargo CLI**, and this time the Kargo UI is worth opening too
 Before you start, finish Lab 3. `make check STEP=3` should say `All good.` If it does not, run `make catchup STEP=3`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - **Verification** is a check that Kargo runs after a promotion. A piece of Freight only counts as **verified** in a Stage if the check
   passes, and Stages after it only take verified Freight.

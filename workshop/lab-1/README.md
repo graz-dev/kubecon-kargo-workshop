@@ -38,7 +38,7 @@ guestbook   True    Project is synced and ready for use   2m
 Already did this at the end of guide 01? Then only the `export` line is needed in each new terminal.
 </details>
 
-## The words of this lab
+## Key terms for this lab
 
 - A **Warehouse** watches the places where new things appear, such as an image registry or a Git repository, and bundles what it finds.
 - That bundle is **Freight**: one version of the image plus one commit of the chart, moving together.

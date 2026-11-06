@@ -8,7 +8,7 @@ This lab uses **Kargo Enterprise** features, and custom steps are **alpha**: the
 Before you start, finish Lab 9. `make check STEP=9` should say `All good.` If it does not, run `make catchup STEP=9`. In a new terminal, run
 `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembered.
 
-## The words of this lab
+## Key terms for this lab
 
 - A **custom step** is a container image that Kargo can run as a step of a promotion. You register it once, with a name, and every
   project of the instance can use it.

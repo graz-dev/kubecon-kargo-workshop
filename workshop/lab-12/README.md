@@ -14,7 +14,7 @@ run `export PATH="$PWD/.tools/bin:$PATH"` first. Your `kargo` login is remembere
 If you did the extra of Lab 11, this lab replaces your `prod` Stage: the Terraform steps of `prod` go away, and the addresses of the
 Lambda that are already in Git stay.
 
-## The words of this lab
+## Key terms for this lab
 
 - **ServiceNow** is a system that many companies use to manage IT work, including changes to production.
 - A **change request** is a ticket that asks permission to change production. It has a number, such as `CHG0030035`, and a **state**: it
